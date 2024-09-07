@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "addon-template",
+  "id": "phabas-port",
   "version": "${version}",
-  "name": "Addon Template",
-  "description": "An addon template for the Meteor addons.",
+  "name": "Phobos 1.20.1",
+  "description": "Ported phobos from 1.12.2 to 1.20.1 fabric",
   "authors": [
-    "seasnail"
+    "CatC6der"
   ],
   "contact": {
     "repo": "https://github.com/MeteorDevelopment/meteor-addon-template"
@@ -20,6 +20,7 @@
   "mixins": [
     "addon-template.mixins.json"
   ],
+  "accessWidener": "phabas-port.accesswidener",
   "custom": {
     "meteor-client:color": "225,25,25"
   },

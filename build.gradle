@@ -28,7 +28,9 @@ dependencies {
     // Meteor
     modImplementation "meteordevelopment:meteor-client:${project.meteor_version}"
 }
-
+loom {
+    accessWidenerPath = file("src/main/resources/phabas-port.accesswidener")
+}
 processResources {
     filesMatching("fabric.mod.json") {
         expand "version": project.version, "mc_version": project.minecraft_version
