@@ -1,47 +1,22 @@
 package com.example.addon.util;
 
-import meteordevelopment.meteorclient.systems.friends.Friend;
 import meteordevelopment.meteorclient.systems.friends.Friends;
 import net.minecraft.block.*;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.input.Input;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.MovementType;
 import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.entity.mob.AmbientEntity;
-import net.minecraft.entity.mob.EndermanEntity;
-import net.minecraft.entity.mob.ZombifiedPiglinEntity;
-import net.minecraft.entity.passive.IronGolemEntity;
-import net.minecraft.entity.passive.SquidEntity;
-import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.projectile.FireballEntity;
-import net.minecraft.entity.projectile.ShulkerBulletEntity;
-import net.minecraft.entity.vehicle.BoatEntity;
-import net.minecraft.entity.vehicle.MinecartEntity;
 import net.minecraft.item.AxeItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.SwordItem;
-import net.minecraft.item.TallBlockItem;
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.*;
 
-import java.awt.*;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.math.RoundingMode;
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
-
-import static com.ibm.icu.text.PluralRules.Operand.e;
-import static meteordevelopment.meteorclient.systems.modules.combat.Offhand.Item.Potion;
-import static net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket.InteractType.ATTACK;
 
 public class EntityUtil implements Util {
     public static final Vec3d[] antiDropOffsetList;
@@ -68,27 +43,12 @@ public class EntityUtil implements Util {
 
     public static void attackEntity(Entity entity, boolean packet, boolean swingArm) {
         if (packet) {
-            Constructor<PlayerInteractEntityC2SPacket> constructor = null;
-            try {
-                constructor = PlayerInteractEntityC2SPacket.class.getDeclaredConstructor(int.class, boolean.class, PlayerInteractEntityC2SPacket.class);
-            } catch (NoSuchMethodException ex) {
-                throw new RuntimeException(ex);
-            }
-            constructor.setAccessible(true);
-            PlayerInteractEntityC2SPacket interactPacket = null;
-            try {
-                interactPacket = constructor.newInstance(entity.getId(), true, ATTACK);
-            } catch (InstantiationException ex) {
-                throw new RuntimeException(ex);
-            } catch (IllegalAccessException ex) {
-                throw new RuntimeException(ex);
-            } catch (InvocationTargetException ex) {
-                throw new RuntimeException(ex);
-            }
+            PlayerInteractEntityC2SPacket interactPacket = PlayerInteractEntityC2SPacket.attack(entity, true);
             MinecraftClient.getInstance().getNetworkHandler().sendPacket(interactPacket);
         } else {
             MinecraftClient.getInstance().player.attack(entity);
         }
+
         if (swingArm) {
             MinecraftClient.getInstance().player.swingHand(Hand.MAIN_HAND);
         }
@@ -130,7 +90,7 @@ public class EntityUtil implements Util {
 //    }
 
     public static boolean isSafe(final Entity entity, final int height, final boolean floor, final boolean face) {
-        return getUnsafeBlocks(entity, height, floor, face).size() == 0;
+        return getUnsafeBlocks(entity, height, floor, face).isEmpty();
     }
 
 //    public static boolean stopSneaking(final boolean isSneaking) {
