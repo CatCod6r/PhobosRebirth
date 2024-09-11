@@ -1,5 +1,6 @@
-package com.example.addon.mixin.mixins;
+package com.example.addon.mixin;
 
+import com.example.addon.util.BlockUtil;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.DropItemsEvent;
 import meteordevelopment.meteorclient.events.entity.player.*;
@@ -99,7 +100,7 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
         if (MeteorClient.EVENT_BUS.post(StartBreakingBlockEvent.get(blockPos, direction)).isCancelled()) info.cancel();
         else {
             SpeedMine sm = Modules.get().get(SpeedMine.class);
-            BlockState state = mc.world.getBlockState(blockPos);
+            BlockState state = BlockUtil.getState(blockPos);
 
             if (!sm.instamine() || !sm.filter(state.getBlock())) return;
 

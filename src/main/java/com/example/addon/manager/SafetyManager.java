@@ -11,7 +11,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Position;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -51,16 +50,16 @@ public class SafetyManager
                 this.SAFE.set(true);
                 return;
             }
-            ArrayList<Entity> crystals = new ArrayList<>((Collection) SafetyManager.mc.world.getEntities());
+            ArrayList<Entity> crystals = new ArrayList<>((Collection) mc.world.getEntities());
             for (Entity crystal : crystals) {
-                if (!(crystal instanceof EndCrystalEntity) || !((double) DamageUtil.calculateDamage(crystal, SafetyManager.mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(crystal.getPos()) < 40.0))
+                if (!(crystal instanceof EndCrystalEntity) || !((double) DamageUtil.calculateDamage(crystal, mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(crystal.getPos()) < 40.0))
                     continue;
                 safe = false;
                 break;
             }
             if (safe) {
                 for (BlockPos pos : BlockUtil.possiblePlacePositions(4.0f, false, oneDot15)) {
-                    if (!((double) DamageUtil.calculateDamage(pos, SafetyManager.mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(pos) < 40.0))
+                    if (!((double) DamageUtil.calculateDamage(pos, mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(pos) < 40.0))
                         continue;
                     safe = false;
                     break;

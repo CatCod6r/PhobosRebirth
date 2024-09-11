@@ -16,7 +16,6 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.*;
 
 import java.util.*;
-import java.util.List;
 
 public class EntityUtil implements Util {
     public static final Vec3d[] antiDropOffsetList;
@@ -152,7 +151,7 @@ public class EntityUtil implements Util {
         final List<Vec3d> vec3ds = new ArrayList<Vec3d>();
         for (final Vec3d vector : getOffsets(height, floor, face)) {
             BlockPos targetPos = new BlockPos((int) pos.x, (int) pos.y, (int) pos.z).add((int) vector.x, (int) vector.y, (int) vector.z);
-            final Block block = EntityUtil.mc.world.getBlockState(targetPos).getBlock();
+            final Block block = BlockUtil.getBlock(targetPos);
             if (block instanceof AirBlock || block instanceof FluidBlock || block instanceof TallFlowerBlock || block instanceof FireBlock || block instanceof DeadBushBlock || block instanceof SnowBlock) {
                 vec3ds.add(vector);
             }
@@ -169,8 +168,8 @@ public class EntityUtil implements Util {
     }
 
     public static boolean isCrystalAtFeet(final EndCrystalEntity crystal, final double range) {
-        for (PlayerEntity player : EntityUtil.mc.world.getPlayers()) {
-            if (EntityUtil.mc.player.squaredDistanceTo(player) > range * range) {
+        for (PlayerEntity player : mc.world.getPlayers()) {
+            if (mc.player.squaredDistanceTo(player) > range * range) {
                 continue;
             }
             if (Friends.get().isFriend((PlayerEntity) player)) {
@@ -190,7 +189,7 @@ public class EntityUtil implements Util {
         final BlockPos[] array;
         final BlockPos[] touchingBlocks = array = new BlockPos[]{blockPos.north(), blockPos.south(), blockPos.east(), blockPos.west(), blockPos.down()};
         for (final BlockPos pos : array) {
-            final BlockState touchingState = EntityUtil.mc.world.getBlockState(pos);
+            final BlockState touchingState = BlockUtil.getState(pos);
             if (touchingState.getBlock() == Blocks.AIR || touchingState.getBlock() != Blocks.OBSIDIAN) {
                 return false;
             }
@@ -202,7 +201,7 @@ public class EntityUtil implements Util {
         final BlockPos[] array;
         final BlockPos[] touchingBlocks = array = new BlockPos[]{blockPos.north(), blockPos.south(), blockPos.east(), blockPos.west(), blockPos.down()};
         for (final BlockPos pos : array) {
-            final BlockState touchingState = EntityUtil.mc.world.getBlockState(pos);
+            final BlockState touchingState = BlockUtil.getState(pos);
             if (touchingState.getBlock() == Blocks.AIR || touchingState.getBlock() != Blocks.BEDROCK) {
                 return false;
             }
@@ -214,7 +213,7 @@ public class EntityUtil implements Util {
         final BlockPos[] array;
         final BlockPos[] touchingBlocks = array = new BlockPos[]{blockPos.north(), blockPos.south(), blockPos.east(), blockPos.west(), blockPos.down()};
         for (final BlockPos pos : array) {
-            final BlockState touchingState = EntityUtil.mc.world.getBlockState(pos);
+            final BlockState touchingState = BlockUtil.getState(pos);
             if (touchingState.getBlock() == Blocks.AIR || (touchingState.getBlock() != Blocks.BEDROCK && touchingState.getBlock() != Blocks.OBSIDIAN)) {
                 return false;
             }
@@ -235,7 +234,7 @@ public class EntityUtil implements Util {
     }
 
     public static double getDst(final Vec3d vec) {
-        return EntityUtil.mc.player.getPos().distanceTo(vec);
+        return mc.player.getPos().distanceTo(vec);
     }
 
     public static boolean isTrapped(final PlayerEntity player, final boolean antiScaffold, final boolean antiStep, final boolean legs, final boolean platform, final boolean antiDrop, final boolean face) {
@@ -254,7 +253,7 @@ public class EntityUtil implements Util {
         for (int i = 0; i < getTrapOffsets(antiScaffold, antiStep, legs, platform, antiDrop, face).length; ++i) {
             final Vec3d vector = getTrapOffsets(antiScaffold, antiStep, legs, platform, antiDrop, face)[i];
             final BlockPos targetPos = new BlockPos(player.getBlockPos()).add((int) vector.x, (int) vector.y, (int) vector.z);
-            final Block block = EntityUtil.mc.world.getBlockState(targetPos).getBlock();
+            final Block block = BlockUtil.getBlock(targetPos);
             if (block instanceof AirBlock || block instanceof FluidBlock || block instanceof TallFlowerBlock || block instanceof FireBlock || block instanceof DeadBushBlock || block instanceof SnowBlock) {
                 vec3ds.add(vector);
             }
@@ -270,7 +269,7 @@ public class EntityUtil implements Util {
         for (int x = MathHelper.floor(entity.getX()); x < MathHelper.ceil(entity.getX()); ++x) {
             for (int z = MathHelper.floor(entity.getZ()); z < MathHelper.ceil(entity.getZ()); ++z) {
                 final BlockPos pos = new BlockPos(x, (int) y, z);
-                if (EntityUtil.mc.world.getBlockState(pos).getBlock() instanceof FluidBlock) {
+                if (BlockUtil.getBlock(pos) instanceof FluidBlock) {
                     return true;
                 }
             }
@@ -298,7 +297,7 @@ public class EntityUtil implements Util {
         for (int x = MathHelper.floor(entity.getX()); x < MathHelper.ceil(entity.getX()); ++x) {
             for (int z = MathHelper.floor(entity.getZ()); z < MathHelper.ceil(entity.getZ()); ++z) {
                 final BlockPos pos = new BlockPos(x, MathHelper.floor(y), z);
-                if (EntityUtil.mc.world.getBlockState(pos).getBlock() instanceof FluidBlock) {
+                if (BlockUtil.getBlock(pos) instanceof FluidBlock) {
                     return true;
                 }
             }
@@ -473,11 +472,11 @@ public class EntityUtil implements Util {
     }
 
 //    public static boolean canEntityFeetBeSeen(final Entity entityIn) {
-//        return EntityUtil.mc.world.raycast(new Vec3d(EntityUtil.mc.player.getX(), EntityUtil.mc.player.getX() + EntityUtil.mc.player.getEyeHeight(EntityUtil.mc.player.getEyePos()), EntityUtil.mc.player.getZ()), new Vec3d(entityIn.getX(), entityIn.getY(), entityIn.getZ()), false, true, false) == null;
+//        return mc.world.raycast(new Vec3d(EntityUtil.mc.player.getX(), EntityUtil.mc.player.getX() + EntityUtil.mc.player.getEyeHeight(EntityUtil.mc.player.getEyePos()), EntityUtil.mc.player.getZ()), new Vec3d(entityIn.getX(), entityIn.getY(), entityIn.getZ()), false, true, false) == null;
 //    }
 
     public static boolean isntValid(final Entity entity, final double range) {
-        return entity == null || isDead(entity) || entity.equals(EntityUtil.mc.player) || (entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity)) || EntityUtil.mc.player.getBlockPos().getSquaredDistance(entity.getPos()) > MathUtil.square(range);
+        return entity == null || isDead(entity) || entity.equals(mc.player) || (entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity)) || mc.player.getBlockPos().getSquaredDistance(entity.getPos()) > MathUtil.square(range);
     }
 
     public static boolean isValid(final Entity entity, final double range) {
@@ -636,14 +635,14 @@ public class EntityUtil implements Util {
 
     public static PlayerEntity getClosestEnemy(final double distance) {
         PlayerEntity closest = null;
-        for (final PlayerEntity player : EntityUtil.mc.world.getPlayers()) {
+        for (final PlayerEntity player : mc.world.getPlayers()) {
             if (isntValid(player, distance)) {
                 continue;
             }
             if (closest == null) {
                 closest = player;
             } else {
-                if (EntityUtil.mc.player.getBlockPos().getSquaredDistance(player.getPos()) >= EntityUtil.mc.player.getBlockPos().getSquaredDistance(closest.getPos())) {
+                if (mc.player.getBlockPos().getSquaredDistance(player.getPos()) >= mc.player.getBlockPos().getSquaredDistance(closest.getPos())) {
                     continue;
                 }
                 closest = player;
@@ -667,7 +666,7 @@ public class EntityUtil implements Util {
 //        final int y = (int) bb.minY;
 //        for (int x = MathHelper.floor(bb.minX); x < MathHelper.floor(bb.maxX) + 1; ++x) {
 //            for (int z = MathHelper.floor(bb.minZ); z < MathHelper.floor(bb.maxZ) + 1; ++z) {
-//                final Block block = EntityUtil.mc.world.getBlockState(new BlockPos(x, y, z)).getBlock();
+//                final Block block = mc.world.getBlockState(new BlockPos(x, y, z)).getBlock();
 //                if (!(block instanceof AirBlock)) {
 //                    if (!(block instanceof FluidBlock)) {
 //                        return false;
@@ -688,7 +687,7 @@ public class EntityUtil implements Util {
 //        final int y = (int) bb.minY;
 //        for (int x = MathHelper.floor(bb.minX); x < MathHelper.floor(bb.maxX + 1.0); ++x) {
 //            for (int z = MathHelper.floor(bb.minZ); z < MathHelper.floor(bb.maxZ + 1.0); ++z) {
-//                final Block block = EntityUtil.mc.world.getBlockState(new BlockPos(x, y, z)).getBlock();
+//                final Block block = mc.world.getBlockState(new BlockPos(x, y, z)).getBlock();
 //                if (block != Blocks.AIR) {
 //                    if (!(block instanceof FluidBlock)) {
 //                        return false;
@@ -707,7 +706,7 @@ public class EntityUtil implements Util {
 //        final double n = entity.getY() + 0.01;
 //        for (int i = MathHelper.floor(entity.getX()); i < MathHelper.ceil(entity.getX()); ++i) {
 //            for (int j = MathHelper.floor(entity.getZ()); j < MathHelper.ceil(entity.getZ()); ++j) {
-//                if (EntityUtil.mc.world.getBlockState(new BlockPos(i, (int) n, j)).getBlock() instanceof FluidBlock) {
+//                if (mc.world.getBlockState(new BlockPos(i, (int) n, j)).getBlock() instanceof FluidBlock) {
 //                    return true;
 //                }
 //            }
@@ -735,7 +734,7 @@ public class EntityUtil implements Util {
 //        final double n2 = posY - n;
 //        for (int i = MathHelper.floor(entity.getX()); i < MathHelper.ceil(entity.getX()); ++i) {
 //            for (int j = MathHelper.floor(entity.getZ()); j < MathHelper.ceil(entity.getZ()); ++j) {
-//                if (EntityUtil.mc.world.getBlockState(new BlockPos(i, MathHelper.floor(n2), j)).getBlock() instanceof FluidBlock) {
+//                if (mc.world.getBlockState(new BlockPos(i, MathHelper.floor(n2), j)).getBlock() instanceof FluidBlock) {
 //                    return true;
 //                }
 //            }
@@ -748,7 +747,7 @@ public class EntityUtil implements Util {
 //        for (int x = MathHelper.floor(EntityUtil.mc.player.posX); x < MathHelper.ceil(EntityUtil.mc.player.posX); ++x) {
 //            for (int z = MathHelper.floor(EntityUtil.mc.player.posZ); z < MathHelper.ceil(EntityUtil.mc.player.posZ); ++z) {
 //                final BlockPos pos = new BlockPos(x, MathHelper.floor(y), z);
-//                if (EntityUtil.mc.world.getBlockState(pos).getBlock() instanceof FluidBlock) {
+//                if (mc.world.getBlockState(pos).getBlock() instanceof FluidBlock) {
 //                    return true;
 //                }
 //            }
@@ -788,7 +787,7 @@ public class EntityUtil implements Util {
 //        dfDistance.setRoundingMode(RoundingMode.CEILING);
 //        final StringBuilder healthSB = new StringBuilder();
 //        final StringBuilder distanceSB = new StringBuilder();
-//        for (final PlayerEntity player : EntityUtil.mc.world.getPlayers()) {
+//        for (final PlayerEntity player : mc.world.getPlayers()) {
 //            if (player.isInvisible() && !Managers.getInstance().tRadarInv.getValue()) {
 //                continue;
 //            }
