@@ -1,9 +1,6 @@
 package com.example.addon.manager;
 
 import com.example.addon.features.Feature;
-import meteordevelopment.meteorclient.utils.player.Rotations;
-
-import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class RotationManager extends Feature {
     private float yaw;

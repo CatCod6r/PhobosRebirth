@@ -1,7 +1,5 @@
 package com.example.addon.util;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -11,14 +9,9 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.*;
-import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.RaycastContext;
-import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 
 public class DamageUtil
@@ -92,7 +85,7 @@ public class DamageUtil
         float damage = (int) ((v * v + v) / 2.0 * 7.0 * (double) doubleExplosionSize + 1.0);
         double finald = 1.0;
         if (entity instanceof LivingEntity) {
-            finald = DamageUtil.getBlastReduction((LivingEntity) entity, DamageUtil.getDamageMultiplied(damage), new Explosion(DamageUtil.mc.world, null, posX, posY, posZ, 6.0f, false, Explosion.DestructionType.DESTROY));
+            finald = getBlastReduction((LivingEntity) entity, getDamageMultiplied(damage), new Explosion(mc.world, null, posX, posY, posZ, 6.0f, false, Explosion.DestructionType.DESTROY));
         }
         return (float) finald;
     }
@@ -188,7 +181,7 @@ public class DamageUtil
     }
 
     public static float getDamageMultiplied(float damage) {
-        int diff = DamageUtil.mc.world.getDifficulty().getId();
+        int diff = mc.world.getDifficulty().getId();
         return damage * (diff == 0 ? 0.0f : (diff == 2 ? 1.0f : (diff == 1 ? 0.5f : 1.5f)));
     }
 
@@ -201,7 +194,7 @@ public class DamageUtil
     }
 
     public static boolean canTakeDamage(boolean suicide) {
-        return !DamageUtil.mc.player.isCreative() && !suicide;
+        return !mc.player.isCreative() && !suicide;
     }
 
     public static int getCooldownByWeapon(PlayerEntity player) {
