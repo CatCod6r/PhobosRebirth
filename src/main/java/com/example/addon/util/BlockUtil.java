@@ -2,9 +2,7 @@ package com.example.addon.util;
 
 import net.minecraft.block.*;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.entity.projectile.thrown.ExperienceBottleEntity;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.util.ActionResult;
@@ -33,49 +31,7 @@ public class BlockUtil
         , Blocks.SUNFLOWER, Blocks.FLOWERING_AZALEA, Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM, Blocks.WHEAT, Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS, Blocks.PUMPKIN_STEM, Blocks.MELON_STEM, Blocks.LILY_PAD, Blocks.NETHER_WART, Blocks.COCOA, Blocks.CHORUS_FLOWER, Blocks.CHORUS_PLANT, Blocks.GRASS_BLOCK, Blocks.DEAD_BUSH, Blocks.VINE, Blocks.FIRE, Blocks.RAIL, Blocks.ACTIVATOR_RAIL, Blocks.DETECTOR_RAIL, Blocks.POWERED_RAIL, Blocks.TORCH);
         //TODO : All new updates block also
 
-    public static List<Direction> getPossibleSides(BlockPos pos) {
-        ArrayList<Direction> facings = new ArrayList<>();
-        if (mc.world == null || pos == null) {
-            return facings;
-        }
-        for (Direction side : Direction.values()) {
-            BlockPos neighbour = pos.offset(side);
-            BlockState blockState = getState(neighbour);
-            //TODO : rewrite
-            if (blockState == null ||
-                //!MixinBlockLiquid.canCollide(blockState, false)
-                blockState.isReplaceable()) continue;
-            facings.add(side);
-        }
-        return facings;
-    }
-
-    public static int isPositionPlaceable(BlockPos pos, boolean rayTrace) {
-        return isPositionPlaceable(pos, rayTrace, true);
-    }
-
-    public static int isPositionPlaceable(BlockPos pos, boolean rayTrace, boolean entityCheck) {
-        Block block = getBlock(pos);
-        if (!(block instanceof AirBlock || block instanceof FluidBlock || block instanceof GrassBlock || block instanceof FireBlock || block instanceof DeadBushBlock || block instanceof SnowBlock)) {
-            return 0;
-        }
-        if (!rayTracePlaceCheck(pos, rayTrace, 0.0f)) {
-            return -1;
-        }
-        if (entityCheck) {
-            for (Entity entity : mc.world.getOtherEntities(null, new Box(pos))) {
-                if (entity instanceof ItemEntity || entity instanceof ExperienceBottleEntity) continue;
-                return 1;
-            }
-        }
-        for (Direction side : getPossibleSides(pos)) {
-            if (!canBeClicked(pos.offset(side))) continue;
-            return 3;
-        }
-        return 2;
-    }
-
-    public static List<BlockPos> getSphere(BlockPos pos, float placeRange, int placeRange2, boolean hollow, boolean sphere, int plus_y) {
+    public static List<BlockPos> getSphere(BlockPos pos, double placeRange, int placeRange2, boolean hollow, boolean sphere, int plus_y) {
         ArrayList<BlockPos> circleBlocks = new ArrayList<>();
         int currX = pos.getX();
         int currY = pos.getY();
@@ -88,10 +44,10 @@ public class BlockUtil
                 int y = sphere ? currY - (int) placeRange : currY;
                 while (true) {
                     float f = y;
-                    float f2 = sphere ? (float) currY + placeRange : (float) (currY + placeRange2);
+                    double f2 = sphere ? currY + placeRange : (currY + placeRange2);
                     if (!(f < f2)) break;
                     double dist = (currX - x) * (currX - x) + (currZ - z) * (currZ - z) + (sphere ? (currY - y) * (currY - y) : 0);
-                    if (!(!(dist < (double) (placeRange * placeRange)) || hollow && dist < (double) ((placeRange - 1.0f) * (placeRange - 1.0f)))) {
+                    if (!(!(dist < (placeRange * placeRange)) || hollow && dist < ((placeRange - 1.0f) * (placeRange - 1.0f)))) {
                         BlockPos l = new BlockPos(x, y + plus_y, z);
                         circleBlocks.add(l);
                     }
@@ -104,7 +60,7 @@ public class BlockUtil
         return circleBlocks;
     }
 
-    public static List<BlockPos> possiblePlacePositions(float placeRange, boolean specialEntityCheck, boolean oneDot15) {
+    public static List<BlockPos> possiblePlacePositions(double placeRange, boolean specialEntityCheck, boolean oneDot15) {
         NonNullList positions = NonNullList.create();
         positions.addAll(getSphere(EntityUtil.getPlayerPos(mc.player), placeRange, (int) placeRange, false, true, 0).stream().filter(pos -> canPlaceCrystal(pos, specialEntityCheck, oneDot15)).collect(Collectors.toList()));
         return positions;
@@ -137,11 +93,6 @@ public class BlockUtil
             return false;
         }
         return true;
-    }
-
-    public static boolean canBeClicked(BlockPos pos) {
-        //return MixinBlockLiquid.canCollide(getState(pos), false);
-        return getBlock(pos).getDefaultState().isSolid();
     }
 
     public static Block getBlock(BlockPos pos) {
@@ -181,14 +132,6 @@ public class BlockUtil
     //TODO : update lists
     public static boolean isBlockUnSolid(Block block) {
         return unSolidBlocks.contains(block);
-    }
-
-    public static Vec3d[] convertVec3ds(Vec3d vec3d, Vec3d[] input) {
-        Vec3d[] output = new Vec3d[input.length];
-        for (int i = 0; i < input.length; ++i) {
-            output[i] = vec3d.add(input[i]);
-        }
-        return output;
     }
 
     public static boolean rayTracePlaceCheck(BlockPos pos, boolean shouldCheck, float height) {

@@ -2,9 +2,7 @@ package com.example.addon.features.modules;
 
 import com.example.addon.Addon;
 import com.example.addon.event.events.UpdateWalkingPlayerEvent;
-import com.example.addon.features.Feature;
 import com.example.addon.mixin.PlayerMoveC2SPacketAccessor;
-import com.example.addon.settings.FloatSetting;
 import com.example.addon.util.*;
 import com.example.addon.util.Timer;
 import com.mojang.authlib.GameProfile;
@@ -12,6 +10,8 @@ import io.netty.util.internal.ConcurrentSet;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.gui.GuiThemes;
+import meteordevelopment.meteorclient.gui.themes.meteor.MeteorGuiTheme;
 import meteordevelopment.meteorclient.mixininterface.IPlayerInteractEntityC2SPacket;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.settings.*;
@@ -19,6 +19,7 @@ import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.utils.misc.Keybind;
+import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
@@ -60,61 +61,44 @@ public class AutoCrystalP extends Module {
     private final SettingGroup sgRender = settings.createGroup("Render");
     public static PlayerEntity target = null;
     public static Set<BlockPos> lowDmgPos = new ConcurrentSet();
-    public static Set<BlockPos> placedPos = new HashSet<BlockPos>();
-    public static Set<BlockPos> brokenPos = new HashSet<BlockPos>();
+    public static Set<BlockPos> placedPos = new HashSet<>();
+    public static Set<BlockPos> brokenPos = new HashSet<>();
     private static AutoCrystalP instance;
+    private final Timer switchTimer = new Timer();
     public final Timer threadTimer = new Timer();
     private final Timer manualTimer = new Timer();
     private final Timer breakTimer = new Timer();
     private final Timer placeTimer = new Timer();
     private final Timer syncTimer = new Timer();
     private final Timer predictTimer = new Timer();
-
-    private final Timer switchTimer = new Timer();
     private final Timer renderTimer = new Timer();
     private final AtomicBoolean shouldInterrupt = new AtomicBoolean(false);
     private final Timer syncroTimer = new Timer();
-    private final Map<PlayerEntity, Timer> totemPops = new ConcurrentHashMap<PlayerEntity, Timer>();
-    private final Queue<PlayerInteractEntityC2SPacket> packetUseEntities = new LinkedList<PlayerInteractEntityC2SPacket>();
+    private final Map<PlayerEntity, Timer> totemPops = new ConcurrentHashMap<>();
+    private final Queue<PlayerInteractEntityC2SPacket> packetUseEntities = new LinkedList<>();
     private final AtomicBoolean threadOngoing = new AtomicBoolean(false);
 
     ///DEV///
-    //TODO : prob get rid of this
-    private final Setting<Settings> setting = sgDev.add(new EnumSetting.Builder<Settings>()
-        .name("Settings")
-        .description("Settings")
-        .defaultValue(Settings.PLACE)
-        .build()
-    );
-    private final Setting<Boolean> attackOppositeHand = sgDev.add(new BoolSetting.Builder()
-        .name("OppositeHand")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
+//    private final Setting<Boolean> attackOppositeHand = sgDev.add(new BoolSetting.Builder()
+//        .name("opposite-hand")
+//        .description("")
+//        .defaultValue(false)
+//        .build()
+//    );
     private final Setting<Boolean> removeAfterAttack = sgDev.add(new BoolSetting.Builder()
-        .name("AttackRemove")
+        .name("attack-remove")
         .description("")
         .defaultValue(false)
         .build()
     );
     private final Setting<Boolean> antiBlock = sgDev.add(new BoolSetting.Builder()
-        .name("AntiFeetPlace")
+        .name("anti-feet-place")
         .description("")
         .defaultValue(false)
         .build()
     );
-    private final Setting<Integer> switchCooldown = sgDev.add(new IntSetting.Builder()
-        .name("Cooldown")
-        .description("Cooldown")
-        .defaultValue(500)
-        .min(0)
-        .max(1000)
-        .sliderRange(0, 1000)
-        .build()
-    );
     private final Setting<Integer> eventMode = sgDev.add(new IntSetting.Builder()
-        .name("Updates")
+        .name("updates")
         .description("Updates")
         .defaultValue(3)
         .min(1)
@@ -122,179 +106,207 @@ public class AutoCrystalP extends Module {
         .sliderRange(1, 3)
         .build()
     );
-    private final Setting<Float> minMinDmg = sgDev.add(new FloatSetting.Builder()
-        .name("MinMinDmg")
+    private final Setting<Double> minMinDmg = sgDev.add(new DoubleSetting.Builder()
+        .name("min-min-dmg")
         .description("")
-        .min(0.0f).max(3.0f)
-        .sliderRange(0.0f, 3.0f)
-        .defaultValue(0.0f)
+        .min(0.0).max(3.0)
+        .sliderRange(0.0, 3.0)
+        .defaultValue(0.0)
+        .visible(() -> this.place.get())
         .build()
     );
     private final Setting<Boolean> breakSwing = sgDev.add(new BoolSetting.Builder()
-        .name("BreakSwing")
+        .name("break-swing")
         .description("")
         .defaultValue(true)
         .build()
     );
     private final Setting<Boolean> placeSwing = sgDev.add(new BoolSetting.Builder()
-        .name("PlaceSwing")
+        .name("place-swing")
         .description("")
         .defaultValue(false)
         .build()
     );
     private final Setting<Boolean> exactHand = sgDev.add(new BoolSetting.Builder()
-        .name("ExactHand")
+        .name("exact-hand")
         .description("")
         .defaultValue(false)
+        .visible(this.placeSwing::get)
         .build()
     );
     private final Setting<Boolean> justRender = sgDev.add(new BoolSetting.Builder()
-        .name("JustRender")
+        .name("just-render")
         .description("")
         .defaultValue(false)
         .build()
     );
     private final Setting<Boolean> fakeSwing = sgDev.add(new BoolSetting.Builder()
-        .name("FakeSwing")
+        .name("fake-swing")
         .description("")
         .defaultValue(false)
+        .visible(this.justRender::get)
         .build()
     );
     private final Setting<Logic> logic = sgDev.add(new EnumSetting.Builder<Logic>()
-        .name("Logic")
+        .name("logic")
         .description("Logic")
         .defaultValue(Logic.BREAKPLACE)
         .build()
     );
     private final Setting<DamageSync> damageSync = sgDev.add(new EnumSetting.Builder<DamageSync>()
-        .name("Logic")
+        .name("damage-sync")
         .description("")
         .defaultValue(DamageSync.NONE)
         .build()
     );
     private final Setting<Integer> damageSyncTime = sgDev.add(new IntSetting.Builder()
-        .name("SyncDelay")
+        .name("sync-delay")
         .description("")
         .defaultValue(500)
         .min(0)
         .max(500)
         .sliderRange(0, 500)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE)
         .build()
     );
-    private final Setting<Boolean> syncedFeetPlace = sgDev.add(new BoolSetting.Builder()
-        .name("FeetSync")
+    private final Setting<Double> dropOff = sgDev.add(new DoubleSetting.Builder()
+        .name("drop-fff")
         .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> fullSync = sgDev.add(new BoolSetting.Builder()
-        .name("FullSync")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> syncCount = sgDev.add(new BoolSetting.Builder()
-        .name("SyncCount")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Boolean> hyperSync = sgDev.add(new BoolSetting.Builder()
-        .name("HyperSync")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> gigaSync = sgDev.add(new BoolSetting.Builder()
-        .name("GigaSync")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> syncySync = sgDev.add(new BoolSetting.Builder()
-        .name("SyncySync")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> enormousSync = sgDev.add(new BoolSetting.Builder()
-        .name("EnormousSync")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> holySync = sgDev.add(new BoolSetting.Builder()
-        .name("UnbelievableSync")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> rotateFirst = sgDev.add(new BoolSetting.Builder()
-        .name("FirstRotation")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Float> dropOff = sgDev.add(new FloatSetting.Builder()
-        .name("DropOff")
-        .description("")
-        .min(0.0f)
-        .sliderMax(10.0f)
-        .defaultValue(5.0f)
+        .min(0.0)
+        .sliderMax(10.0)
+        .defaultValue(5.0)
+        .visible(() -> this.damageSync.get() == DamageSync.BREAK)
         .build()
     );
     private final Setting<Integer> confirm = sgDev.add(new IntSetting.Builder()
-        .name("Confirm")
+        .name("confirm")
         .description("")
         .defaultValue(250)
         .min(0)
         .sliderMax(1000)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE)
+        .build()
+    );
+    //TODO Make a list for syncs
+    private final Setting<Boolean> syncedFeetPlace = sgDev.add(new BoolSetting.Builder()
+        .name("feet-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE)
+        .build()
+    );
+    private final Setting<Boolean> fullSync = sgDev.add(new BoolSetting.Builder()
+        .name("full-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> syncCount = sgDev.add(new BoolSetting.Builder()
+        .name("sync-count")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> hyperSync = sgDev.add(new BoolSetting.Builder()
+        .name("hyper-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> gigaSync = sgDev.add(new BoolSetting.Builder()
+        .name("giga-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> syncySync = sgDev.add(new BoolSetting.Builder()
+        .name("syncy-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> enormousSync = sgDev.add(new BoolSetting.Builder()
+        .name("enormous-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> holySync = sgDev.add(new BoolSetting.Builder()
+        .name("unbelievable-sync")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.damageSync.get() != DamageSync.NONE && this.syncedFeetPlace.get())
+        .build()
+    );
+    private final Setting<Boolean> rotateFirst = sgDev.add(new BoolSetting.Builder()
+        .name("first-rotation")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.rotate.get() != Rotate.OFF && this.eventMode.get() == 2)
         .build()
     );
     public final Setting<ThreadMode> threadMode = sgDev.add(new EnumSetting.Builder<ThreadMode>()
-        .name("Thread")
+        .name("thread")
         .description("")
         .defaultValue(ThreadMode.NONE)
         .build()
     );
     private final Setting<Integer> threadDelay = sgDev.add(new IntSetting.Builder()
-        .name("ThreadDelay")
+        .name("thread-delay")
         .description("")
         .defaultValue(50)
         .min(1)
         .sliderMax(1000)
+        .visible(() -> this.threadMode.get() != ThreadMode.NONE)
         .build()
     );
     private final Setting<Boolean> syncThreadBool = sgDev.add(new BoolSetting.Builder()
-        .name("ThreadSync")
+        .name("thread-sync")
         .description("")
         .defaultValue(true)
+        .visible(() -> this.threadMode.get() != ThreadMode.NONE)
         .build()
     );
     private final Setting<Integer> syncThreads = sgDev.add(new IntSetting.Builder()
-        .name("SyncThreads")
+        .name("sync-threads")
         .description("")
         .defaultValue(1000)
         .min(1)
         .sliderMax(10000)
+        .visible(() -> this.threadMode.get() != ThreadMode.NONE && this.syncThreadBool.get())
         .build()
     );
     private final Setting<Boolean> predictPos = sgDev.add(new BoolSetting.Builder()
-        .name("PredictPos")
+        .name("predict-pos")
         .description("")
         .defaultValue(false)
         .build()
     );
+    //TODO
+    private final Setting<Boolean> renderExtrapolation = sgDev.add(new BoolSetting.Builder()
+        .name("render-extrapolation")
+        .description("send help")
+        .defaultValue(false)
+        .visible(this.predictPos::get)
+        .build()
+    );
     private final Setting<Integer> predictTicks = sgDev.add(new IntSetting.Builder()
-        .name("ExtrapolationTicks")
+        .name("extrapolation-ticks")
         .description("")
         .defaultValue(2)
         .min(1)
         .sliderMax(20)
+        .visible(this.predictPos::get)
         .build()
     );
     private final Setting<Integer> rotations = sgDev.add(new IntSetting.Builder()
-        .name("Spoofs")
+        .name("spoofs")
         .description("")
         .defaultValue(1)
         .min(1)
@@ -302,59 +314,62 @@ public class AutoCrystalP extends Module {
         .build()
     );
     private final Setting<Boolean> predictRotate = sgDev.add(new BoolSetting.Builder()
-        .name("PredictRotate")
+        .name("predict-rotate")
         .description("")
         .defaultValue(false)
         .build()
     );
-    private final Setting<Float> predictOffset = sgDev.add(new FloatSetting.Builder()
-        .name("PredictOffset")
+    private final Setting<Double> predictOffset = sgDev.add(new DoubleSetting.Builder()
+        .name("predict-offset")
         .description("")
-        .min(0.0f)
-        .sliderMax(4.0f)
-        .defaultValue(0.0f)
+        .min(0.0)
+        .sliderMax(4.0)
+        .defaultValue(0.0)
         .build()
     );
     ///MISC///
-
+    private final Setting<Integer> switchCooldown = sgMisc.add(new IntSetting.Builder()
+        .name("cooldown")
+        .description("Cooldown")
+        .defaultValue(500)
+        .min(0)
+        .max(1000)
+        .sliderRange(0, 1000)
+        .build()
+    );
     private final Setting<Raytrace> raytrace = sgMisc.add(new EnumSetting.Builder<Raytrace>()
-        .name("Raytrace")
+        .name("raytrace")
         .description("Raytrace")
         .defaultValue(Raytrace.NONE)
         .build()
     );
-    private final Setting<Boolean> brownZombie = sgMisc.add(new BoolSetting.Builder()
-        .name("BrownZombieMode")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
     private final Setting<Boolean> holdFacePlace = sgMisc.add(new BoolSetting.Builder()
-        .name("HoldFacePlace")
+        .name("hold-face-place")
         .description("")
         .defaultValue(false)
         .build()
     );
     private final Setting<Boolean> holdFaceBreak = sgMisc.add(new BoolSetting.Builder()
-        .name("HoldSlowBreak")
+        .name("hold-slow-break")
         .description("")
         .defaultValue(false)
+        .visible(this.holdFacePlace::get)
         .build()
     );
     private final Setting<Boolean> slowFaceBreak = sgMisc.add(new BoolSetting.Builder()
-        .name("SlowFaceBreak")
+        .name("slow-face-break")
         .description("")
         .defaultValue(false)
         .build()
     );
     private final Setting<Boolean> actualSlowBreak = sgMisc.add(new BoolSetting.Builder()
-        .name("ActuallySlow")
+        .name("actually-slow")
         .description("")
         .defaultValue(false)
         .build()
     );
     private final Setting<Integer> facePlaceSpeed = sgMisc.add(new IntSetting.Builder()
-        .name("FaceSpeed")
+        .name("face-speed")
         .description("")
         .defaultValue(500)
         .min(0)
@@ -362,27 +377,27 @@ public class AutoCrystalP extends Module {
         .build()
     );
     private final Setting<Boolean> antiNaked = sgMisc.add(new BoolSetting.Builder()
-        .name("AntiNaked")
+        .name("anti-naked")
         .description("")
         .defaultValue(true)
         .build()
     );
-    private final Setting<Float> range = sgMisc.add(new FloatSetting.Builder()
-        .name("Range")
+    private final Setting<Double> range = sgMisc.add(new DoubleSetting.Builder()
+        .name("range")
         .description("")
-        .min(0.1f)
-        .sliderMax(20.0f)
-        .defaultValue(12.0f)
+        .min(0.1)
+        .sliderMax(20.0)
+        .defaultValue(12.0)
         .build()
     );
     private final Setting<Target> targetMode = sgMisc.add(new EnumSetting.Builder<Target>()
-        .name("Target")
+        .name("target")
         .description("")
         .defaultValue(Target.CLOSEST)
         .build()
     );
     private final Setting<Integer> minArmor = sgMisc.add(new IntSetting.Builder()
-        .name("MinArmor")
+        .name("min-armor")
         .description("")
         .defaultValue(5)
         .min(0)
@@ -390,140 +405,148 @@ public class AutoCrystalP extends Module {
         .build()
     );
     private final Setting<AutoSwitch> autoSwitch = sgMisc.add(new EnumSetting.Builder<AutoSwitch>()
-        .name("Switch")
+        .name("switch")
         .description("")
         .defaultValue(AutoSwitch.TOGGLE)
         .build()
     );
+    //TODO : find use + fix
     private final Setting<Keybind> switchBind = sgMisc.add(new KeybindSetting.Builder()
-        .name("SwitchBind")
+        .name("switch-bind")
         .description("")
         .defaultValue(Keybind.none())
+        .visible(() -> this.autoSwitch.get() == AutoSwitch.TOGGLE)
         .build()
     );
+    private final Setting<Boolean> switchBack = sgMisc.add(new BoolSetting.Builder()
+        .name("switchback")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.autoSwitch.get() != AutoSwitch.NONE && this.offhandSwitch.get())
+        .build()
+    );
+    private final Setting<Boolean> lethalSwitch = sgMisc.add(new BoolSetting.Builder()
+        .name("lethal-switch")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.autoSwitch.get() != AutoSwitch.NONE)
+        .build()
+    );
+    private final Setting<Boolean> mineSwitch = sgMisc.add(new BoolSetting.Builder()
+        .name("mine-switch")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.autoSwitch.get() != AutoSwitch.NONE)
+        .build()
+    );
+    private final Setting<Rotate> rotate = sgMisc.add(new EnumSetting.Builder<Rotate>()
+        .name("rotate")
+        .description("")
+        .defaultValue(Rotate.OFF)
+        .build()
+    );
+    private final Setting<Boolean> suicide = sgMisc.add(new BoolSetting.Builder()
+        .name("suicide")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.targetMode.get() != Target.DAMAGE)
+        .build()
+    );
+    private final Setting<Boolean> webAttack = sgMisc.add(new BoolSetting.Builder()
+        .name("web-attack")
+        .description("")
+        .defaultValue(true)
+        .build()
+    );
+    private final Setting<Boolean> fullCalc = sgMisc.add(new BoolSetting.Builder()
+        .name("extra-calc")
+        .description("")
+        .defaultValue(false)
+        .build()
+    );
+    private final Setting<Boolean> sound = sgMisc.add(new BoolSetting.Builder()
+        .name("sound")
+        .description("")
+        .defaultValue(true)
+        .build()
+    );
+    private final Setting<Double> soundRange = sgMisc.add(new DoubleSetting.Builder()
+        .name("sound-range")
+        .description("")
+        .min(0.0)
+        .sliderMax(12.0)
+        .defaultValue(12.0)
+        .build()
+    );
+    private final Setting<Double> soundPlayer = sgMisc.add(new DoubleSetting.Builder()
+        .name("sound-player")
+        .description("")
+        .min(0.0)
+        .sliderMax(12.0)
+        .defaultValue(6.0)
+        .build()
+    );
+    private final Setting<Boolean> soundConfirm = sgMisc.add(new BoolSetting.Builder()
+        .name("sound-confirm")
+        .description("")
+        .defaultValue(true)
+        .build()
+    );
+    private final Setting<Boolean> extraSelfCalc = sgMisc.add(new BoolSetting.Builder()
+        .name("min-self-dmg")
+        .description("")
+        .defaultValue(false)
+        .build()
+    );
+    private final Setting<AntiFriendPop> antiFriendPop = sgMisc.add(new EnumSetting.Builder<AntiFriendPop>()
+        .name("friend-pop")
+        .description("")
+        .defaultValue(AntiFriendPop.NONE)
+        .build()
+    );
+    private final Setting<Boolean> noCount = sgMisc.add(new BoolSetting.Builder()
+        .name("anti-count")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.antiFriendPop.get() == AntiFriendPop.ALL || this.antiFriendPop.get() == AntiFriendPop.BREAK)
+        .build()
+    );
+    private final Setting<Boolean> calcEvenIfNoDamage = sgMisc.add(new BoolSetting.Builder()
+        .name("big-friend-calc")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> (this.antiFriendPop.get() == AntiFriendPop.ALL || this.antiFriendPop.get() == AntiFriendPop.BREAK) && this.targetMode.get() != Target.DAMAGE)
+        .build()
+    );
+    private final Setting<Boolean> predictFriendDmg = sgMisc.add(new BoolSetting.Builder()
+        .name("predict-friend")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> (this.antiFriendPop.get() == AntiFriendPop.ALL || this.antiFriendPop.get() == AntiFriendPop.BREAK) && this.instant.get())
+        .build()
+    );
+    private final Setting<Boolean> brownZombie = sgMisc.add(new BoolSetting.Builder()
+        .name("brown-zombie-mode")
+        .description("")
+        .defaultValue(false)
+        .build()
+    );
+    //TODO
     private final Setting<Boolean> offhandSwitch = sgMisc.add(new BoolSetting.Builder()
         .name("Offhand")
         .description("")
         .defaultValue(true)
         .build()
     );
-    private final Setting<Boolean> switchBack = sgMisc.add(new BoolSetting.Builder()
-        .name("Switchback")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Boolean> lethalSwitch = sgMisc.add(new BoolSetting.Builder()
-        .name("LethalSwitch")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> mineSwitch = sgMisc.add(new BoolSetting.Builder()
-        .name("MineSwitch")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Rotate> rotate = sgMisc.add(new EnumSetting.Builder<Rotate>()
-        .name("Rotate")
-        .description("")
-        .defaultValue(Rotate.OFF)
-        .build()
-    );
-    private final Setting<Boolean> suicide = sgMisc.add(new BoolSetting.Builder()
-        .name("Suicide")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> webAttack = sgMisc.add(new BoolSetting.Builder()
-        .name("WebAttack")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Boolean> fullCalc = sgMisc.add(new BoolSetting.Builder()
-        .name("ExtraCalc")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> sound = sgMisc.add(new BoolSetting.Builder()
-        .name("Sound")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Float> soundRange = sgMisc.add(new FloatSetting.Builder()
-        .name("SoundRange")
-        .description("")
-        .min(0.0f)
-        .sliderMax(12.0f)
-        .defaultValue(12.0f)
-        .build()
-    );
-    private final Setting<Float> soundPlayer = sgMisc.add(new FloatSetting.Builder()
-        .name("SoundPlayer")
-        .description("")
-        .min(0.0f)
-        .sliderMax(12.0f)
-        .defaultValue(6.0f)
-        .build()
-    );
-    private final Setting<Boolean> soundConfirm = sgMisc.add(new BoolSetting.Builder()
-        .name("SoundConfirm")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Boolean> extraSelfCalc = sgMisc.add(new BoolSetting.Builder()
-        .name("MinSelfDmg")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<AntiFriendPop> antiFriendPop = sgMisc.add(new EnumSetting.Builder<AntiFriendPop>()
-        .name("FriendPop")
-        .description("")
-        .defaultValue(AntiFriendPop.NONE)
-        .build()
-    );
-    private final Setting<Boolean> noCount = sgMisc.add(new BoolSetting.Builder()
-        .name("AntiCount")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> calcEvenIfNoDamage = sgMisc.add(new BoolSetting.Builder()
-        .name("BigFriendCalc")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> predictFriendDmg = sgMisc.add(new BoolSetting.Builder()
-        .name("PredictFriend")
-        .description("")
-        .defaultValue(false)
-        .build()
-    );
-
     ///Place
-
     private final Setting<Boolean> place = sgPlace.add(new BoolSetting.Builder()
-        .name("Place")
+        .name("place")
         .description("")
         .defaultValue(true)
-        .build()
-    );
-    private final Setting<Boolean> doublePopOnDamage = sgPlace.add(new BoolSetting.Builder()
-        .name("DamagePop")
-        .description("")
-        .defaultValue(false)
         .build()
     );
     private final Setting<Integer> placeDelay = sgPlace.add(new IntSetting.Builder()
-        .name("PlaceDelay")
+        .name("place-delay")
         .description("")
         .defaultValue(25)
         .min(0)
@@ -531,353 +554,376 @@ public class AutoCrystalP extends Module {
         .sliderRange(0, 500)
         .build()
     );
-    private final Setting<Float> placeRange = sgPlace.add(new FloatSetting.Builder()
-        .name("PlaceRange")
+    private final Setting<Double> placeRange = sgPlace.add(new DoubleSetting.Builder()
+        .name("place-range")
         .description("")
-        .min(0.0f).max(10.0f)
-        .sliderRange(0.0f, 10.0f)
-        .defaultValue(6.0f)
+        .min(0.0).max(10.0)
+        .sliderRange(0.0, 10.0)
+        .defaultValue(6.0)
+        .visible(this.place::get)
         .build()
     );
-    private final Setting<Float> minDamage = sgPlace.add(new FloatSetting.Builder()
-        .name("MinDamage")
+    private final Setting<Double> minDamage = sgPlace.add(new DoubleSetting.Builder()
+        .name("min-damage")
         .description("")
-        .min(0.1f).max(20.0f)
-        .sliderRange(0.1f, 20.0f)
-        .defaultValue(7.0f)
+        .min(0.1).max(20.0)
+        .sliderRange(0.1, 20.0)
+        .defaultValue(7.0)
+        .visible(this.place::get)
         .build()
     );
-    private final Setting<Float> maxSelfPlace = sgPlace.add(new FloatSetting.Builder()
-        .name("MaxSelfPlace")
+    private final Setting<Double> maxSelfPlace = sgPlace.add(new DoubleSetting.Builder()
+        .name("max-self-place")
         .description("")
-        .min(0.1f).max(36.0f)
-        .sliderRange(0.1f, 36.0f)
-        .defaultValue(10.0f)
+        .min(0.1).max(36.0)
+        .sliderRange(0.1, 36.0)
+        .defaultValue(10.0)
+        .visible(this.place::get)
         .build()
     );
     private final Setting<Integer> wasteAmount = sgPlace.add(new IntSetting.Builder()
-        .name("WasteAmount")
+        .name("waste-amount")
         .description("")
         .defaultValue(2)
         .min(1)
         .max(5)
         .sliderRange(1, 5)
+        .visible(this.place::get)
         .build()
     );
     private final Setting<Boolean> wasteMinDmgCount = sgPlace.add(new BoolSetting.Builder()
-        .name("CountMinDmg")
+        .name("count-min-dmg")
         .description("")
         .defaultValue(true)
+        .visible(this.place::get)
+        .build()
+    );
+    private final Setting<Double> facePlace = sgPlace.add(new DoubleSetting.Builder()
+        .name("face-place")
+        .description("")
+        .min(0.1)
+        .sliderMax(20.0)
+        .defaultValue(8.0)
+        .visible(this.place::get)
+        .build()
+    );
+    private final Setting<Double> placetrace = sgPlace.add(new DoubleSetting.Builder()
+        .name("place-trace")
+        .description("")
+        .min(0.0)
+        .sliderMax(10.0)
+        .defaultValue(4.5)
+        .visible(() -> this.place.get() && this.raytrace.get() != Raytrace.NONE && this.raytrace.get() != Raytrace.BREAK)
         .build()
     );
     private final Setting<Boolean> antiSurround = sgPlace.add(new BoolSetting.Builder()
-        .name("AntiSurround")
+        .name("anti-surround")
         .description("")
         .defaultValue(true)
+        .visible(this.place::get)
         .build()
     );
     private final Setting<Boolean> limitFacePlace = sgPlace.add(new BoolSetting.Builder()
         .name("LimitFacePlace")
         .description("")
         .defaultValue(true)
+        .visible(this.place::get)
         .build()
     );
     private final Setting<Boolean> oneDot15 = sgPlace.add(new BoolSetting.Builder()
         .name("1.15")
         .description("")
         .defaultValue(false)
+        .visible(this.place::get)
         .build()
     );
     private final Setting<Boolean> doublePop = sgPlace.add(new BoolSetting.Builder()
-        .name("AntiTotem")
+        .name("anti-totem")
         .description("")
         .defaultValue(false)
+        .visible(this.place::get)
         .build()
     );
     private final Setting<Double> popHealth = sgPlace.add(new DoubleSetting.Builder()
-        .name("PopHealth")
+        .name("pop-health")
         .description("")
         .defaultValue(1.0)
         .min(0)
         .sliderMax(3.0)
+        .visible(() -> this.place.get() && this.doublePop.get())
+        .build()
+    );
+    private final Setting<Double> popDamage = sgPlace.add(new DoubleSetting.Builder()
+        .name("pop-damage")
+        .description("")
+        .min(0.0)
+        .sliderMax(6.0)
+        .defaultValue(4.0)
+        .visible(() -> this.place.get() && this.doublePop.get())
         .build()
     );
     private final Setting<Integer> popTime = sgPlace.add(new IntSetting.Builder()
-        .name("PopTime")
+        .name("pop-time")
         .description("")
         .defaultValue(500)
         .min(0)
         .sliderMax(1000)
+        .visible(() -> this.place.get() && this.doublePop.get())
         .build()
     );
-    private final Setting<Float> facePlace = sgPlace.add(new FloatSetting.Builder()
-        .name("FacePlace")
-        .description("")
-        .min(0.1f)
-        .sliderMax(20.0f)
-        .defaultValue(8.0f)
-        .build()
-    );
-    private final Setting<Float> placetrace = sgPlace.add(new FloatSetting.Builder()
-        .name("Placetrace")
-        .description("")
-        .min(0.0f)
-        .sliderMax(10.0f)
-        .defaultValue(4.5f)
-        .build()
-    );
-    private final Setting<Float> popDamage = sgPlace.add(new FloatSetting.Builder()
-        .name("FacePlace")
-        .description("")
-        .min(0.0f)
-        .sliderMax(6.0f)
-        .defaultValue(4.0f)
-        .build()
-    );
-
     ///Break///
-    private final Setting<Boolean> resetBreakTimer = sgBreak.add(new BoolSetting.Builder()
-        .name("ResetBreakTimer")
+    private final Setting<Boolean> explode = sgBreak.add(new BoolSetting.Builder()
+        .name("break")
         .description("")
         .defaultValue(true)
         .build()
     );
-    private final Setting<Boolean> predictCalc = sgBreak.add(new BoolSetting.Builder()
-        .name("PredictCalc")
+    private final Setting<Switch> switchMode = sgBreak.add(new EnumSetting.Builder<Switch>()
+        .name("attack")
         .description("")
-        .defaultValue(true)
+        .defaultValue(Switch.BREAKSLOT)
+        .visible(this.explode::get)
         .build()
     );
-    private final Setting<Boolean> superSafe = sgBreak.add(new BoolSetting.Builder()
-        .name("SuperSafe")
+    private final Setting<Integer> breakDelay = sgBreak.add(new IntSetting.Builder()
+        .name("break-delay")
         .description("")
-        .defaultValue(true)
+        .defaultValue(50)
+        .min(0)
+        .sliderMax(500)
+        .visible(this.explode::get)
         .build()
     );
-    private final Setting<Boolean> antiCommit = sgBreak.add(new BoolSetting.Builder()
-        .name("AntiOverCommit")
+    private final Setting<Double> breakRange = sgBreak.add(new DoubleSetting.Builder()
+        .name("break-range")
         .description("")
-        .defaultValue(true)
+        .min(0.0)
+        .sliderMax(10.0)
+        .defaultValue(6.0)
+        .visible(this.explode::get)
         .build()
     );
-    private final Setting<Boolean> sync = sgBreak.add(new BoolSetting.Builder()
-        .name("Sync")
+    private final Setting<Integer> packets = sgBreak.add(new IntSetting.Builder()
+        .name("packets")
         .description("")
-        .defaultValue(true)
+        .defaultValue(1)
+        .min(1)
+        .sliderMax(6)
+        .visible(this.explode::get)
         .build()
     );
-    private final Setting<Boolean> instant = sgBreak.add(new BoolSetting.Builder()
-        .name("Predict")
+    private final Setting<Double> maxSelfBreak = sgBreak.add(new DoubleSetting.Builder()
+        .name("max-self-break")
         .description("")
-        .defaultValue(true)
+        .min(0.1)
+        .sliderMax(36.0)
+        .defaultValue(10.0)
+        .visible(this.explode::get)
+        .build()
+    );
+    private final Setting<Double> breaktrace = sgBreak.add(new DoubleSetting.Builder()
+        .name("break-trace")
+        .description("")
+        .min(0.0)
+        .sliderMax(10.0)
+        .defaultValue(4.5)
+        .visible(() -> this.explode.get() && this.raytrace.get() != Raytrace.NONE && this.raytrace.get() != Raytrace.PLACE)
         .build()
     );
     private final Setting<Boolean> manual = sgBreak.add(new BoolSetting.Builder()
-        .name("Manual")
+        .name("manual")
         .description("")
         .defaultValue(true)
         .build()
     );
     private final Setting<Boolean> manualMinDmg = sgBreak.add(new BoolSetting.Builder()
-        .name("ManMinDmg")
+        .name("manual-min-dmg")
         .description("")
         .defaultValue(true)
+        .visible(this.manual::get)
         .build()
     );
-    private final Setting<Boolean> explode = sgBreak.add(new BoolSetting.Builder()
-        .name("Break")
-        .description("")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<Switch> switchMode = sgDev.add(new EnumSetting.Builder<Switch>()
-        .name("Attack")
-        .description("")
-        .defaultValue(Switch.BREAKSLOT)
-        .build()
-    );
-    private final Setting<PredictTimer> instantTimer = sgDev.add(new EnumSetting.Builder<PredictTimer>()
-        .name("Attack")
-        .description("")
-        .defaultValue(PredictTimer.NONE)
-        .build()
-    );
-    private final Setting<Integer> packets = sgPlace.add(new IntSetting.Builder()
-        .name("Packets")
-        .description("")
-        .defaultValue(1)
-        .min(1)
-        .sliderMax(6)
-        .build()
-    );
-    private final Setting<Integer> breakDelay = sgPlace.add(new IntSetting.Builder()
-        .name("BreakDelay")
-        .description("")
-        .defaultValue(50)
-        .min(0)
-        .sliderMax(500)
-        .build()
-    );
-    private final Setting<Integer> manualBreak = sgPlace.add(new IntSetting.Builder()
-        .name("ManualDelay")
+    private final Setting<Integer> manualBreak = sgBreak.add(new IntSetting.Builder()
+        .name("manual-delay")
         .description("")
         .defaultValue(500)
         .min(0)
         .sliderMax(500)
+        .visible(this.manual::get)
         .build()
     );
-    private final Setting<Integer> predictDelay = sgPlace.add(new IntSetting.Builder()
-        .name("PredictDelay")
+    private final Setting<Boolean> sync = sgBreak.add(new BoolSetting.Builder()
+        .name("sync")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.explode.get() || this.manual.get())
+        .build()
+    );
+    private final Setting<Boolean> instant = sgBreak.add(new BoolSetting.Builder()
+        .name("predict")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.explode.get() && this.place.get())
+        .build()
+    );
+    private final Setting<PredictTimer> instantTimer = sgBreak.add(new EnumSetting.Builder<PredictTimer>()
+        .name("predict-timer")
+        .description("")
+        .defaultValue(PredictTimer.NONE)
+        .visible(() -> this.explode.get() && this.place.get() && this.instant.get())
+        .build()
+    );
+    private final Setting<Boolean> resetBreakTimer = sgBreak.add(new BoolSetting.Builder()
+        .name("reset-break-timer")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.explode.get() && this.place.get() && this.instant.get())
+        .build()
+    );
+    private final Setting<Integer> predictDelay = sgBreak.add(new IntSetting.Builder()
+        .name("predict-delay")
         .description("")
         .defaultValue(12)
         .min(0)
         .sliderMax(500)
+        .visible(() -> this.explode.get() && this.place.get() && this.instant.get() && this.instantTimer.get() == PredictTimer.PREDICT)
         .build()
     );
-    private final Setting<Float> breakRange = sgPlace.add(new FloatSetting.Builder()
-        .name("BreakRange")
+    private final Setting<Boolean> predictCalc = sgBreak.add(new BoolSetting.Builder()
+        .name("predict-calc")
         .description("")
-        .min(0.0f)
-        .sliderMax(10.0f)
-        .defaultValue(6.0f)
-        .build()
-    );
-    private final Setting<Float> maxSelfBreak = sgPlace.add(new FloatSetting.Builder()
-        .name("MaxSelfBreak")
-        .description("")
-        .min(0.1f)
-        .sliderMax(36.0f)
-        .defaultValue(10.0f)
-        .build()
-    );
-    private final Setting<Float> breaktrace = sgPlace.add(new FloatSetting.Builder()
-        .name("Breaktrace")
-        .description("")
-        .min(0.0f)
-        .sliderMax(10.0f)
-        .defaultValue(4.5f)
-        .build()
-    );
-
-    ///RENDER///
-
-    private final Setting<RenderMode> renderMode = sgRender.add(new EnumSetting.Builder<RenderMode>()
-        .name("render-mode")
-        .description("The mode to render in.")
-        .defaultValue(RenderMode.Normal)
-        .build()
-    );
-    private final Setting<Boolean> renderSwing = sgRender.add(new BoolSetting.Builder()
-        .name("swing")
-        .description("Renders hand swinging client-side.")
         .defaultValue(true)
+        .visible(() -> this.explode.get() && this.place.get() && this.instant.get())
         .build()
     );
+    private final Setting<Boolean> superSafe = sgBreak.add(new BoolSetting.Builder()
+        .name("super-safe")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.explode.get() && this.place.get() && this.instant.get())
+        .build()
+    );
+    private final Setting<Boolean> antiCommit = sgBreak.add(new BoolSetting.Builder()
+        .name("anti-over-commit")
+        .description("")
+        .defaultValue(true)
+        .visible(() -> this.explode.get() && this.place.get() && this.instant.get())
+        .build()
+    );
+    private final Setting<Boolean> doublePopOnDamage = sgPlace.add(new BoolSetting.Builder()
+        .name("damage-pop")
+        .description("")
+        .defaultValue(false)
+        .visible(() -> this.place.get() && this.doublePop.get() && this.targetMode.get() == Target.DAMAGE)
+        .build()
+    );
+    ///RENDER///
+    // TODO : implement rest of settings
     private final Setting<Boolean> render = sgRender.add(new BoolSetting.Builder()
         .name("render")
-        .description("Renders a block overlay over the block the crystals are being placed on.")
+        .description("Highlight valid locations and more.")
         .defaultValue(true)
-        .build()
-    );
-    private final Setting<Boolean> renderBreak = sgRender.add(new BoolSetting.Builder()
-        .name("break")
-        .description("Renders a block overlay over the block the crystals are broken on.")
-        .defaultValue(false)
         .build()
     );
     private final Setting<ShapeMode> shapeMode = sgRender.add(new EnumSetting.Builder<ShapeMode>()
         .name("shape-mode")
         .description("How the shapes are rendered.")
         .defaultValue(ShapeMode.Both)
+        .visible(this.render::get)
         .build()
     );
     private final Setting<SettingColor> sideColor = sgRender.add(new ColorSetting.Builder()
         .name("side-color")
-        .description("The side color of the block overlay.")
+        .description("The color of the block overlay.")
         .defaultValue(new SettingColor(255, 255, 255, 45))
+        .visible(this.render::get)
         .build()
     );
     private final Setting<SettingColor> lineColor = sgRender.add(new ColorSetting.Builder()
         .name("line-color")
-        .description("The line color of the block overlay.")
+        .description("The line color of the block outline.")
         .defaultValue(new SettingColor(255, 255, 255, 255))
+        .visible(() -> this.render.get() && this.shapeMode.get() != ShapeMode.Sides)
         .build()
     );
-    private final Setting<Boolean> renderDamageText = sgRender.add(new BoolSetting.Builder()
-        .name("damage")
-        .description("Renders crystal damage text in the block overlay.")
-        .defaultValue(true)
-        .build()
-    );
-    private final Setting<SettingColor> damageColor = sgRender.add(new ColorSetting.Builder()
-        .name("damage-color")
-        .description("The color of the damage text.")
-        .defaultValue(new SettingColor(255, 255, 255))
-        .visible(() -> renderMode.get() != RenderMode.None && renderDamageText.get())
-        .build()
-    );
-    private final Setting<Double> damageTextScale = sgRender.add(new DoubleSetting.Builder()
-        .name("damage-scale")
-        .description("How big the damage text should be.")
-        .defaultValue(1.25)
-        .min(1)
-        .sliderMax(4)
-        .visible(renderDamageText::get)
-        .build()
-    );
-    private final Setting<Integer> renderTime = sgRender.add(new IntSetting.Builder()
-        .name("render-time")
-        .description("How long to render for.")
-        .defaultValue(10)
-        .min(0)
-        .sliderMax(20)
-        .build()
-    );
-    private final Setting<Integer> renderBreakTime = sgRender.add(new IntSetting.Builder()
-        .name("break-time")
-        .description("How long to render breaking for.")
-        .defaultValue(13)
-        .min(0)
-        .sliderMax(20)
-        .visible(renderBreak::get)
-        .build()
-    );
-    //TODO : recheck prev
     private final Setting<Boolean> colorSync = sgRender.add(new BoolSetting.Builder()
         .name("color-sync")
-        .description("Syncs the color with the target.")
+        .description("Syncs the outline colors with the client's current theme.")
         .defaultValue(false)
-        .visible(() -> this.setting.get() == Settings.RENDER)
-        .build()
-    );
-    //TODO
-    private final Setting<Float> lineWidth = sgRender.add(new FloatSetting.Builder()
-        .name("line-width")
-        .description("Adjusts the width of the line")
-        .defaultValue(1.5f)
-        .min(0.1f).max(5.0f)
-        .sliderRange(0.1f, 5.0f)
-        .visible(() -> this.setting.get() == Settings.RENDER && this.render.get() && this.shapeMode.get() != ShapeMode.Sides)
+        .visible(this.render::get)
         .build()
     );
     private final Setting<Boolean> text = sgRender.add(new BoolSetting.Builder()
         .name("text")
         .description("text text text")
         .defaultValue(false)
-        .visible(() -> this.setting.get() == Settings.RENDER && this.render.get())
+        .visible(this.render::get)
         .build()
     );
-    private final Setting<Boolean> renderExtrapolation = sgRender.add(new BoolSetting.Builder()
-        .name("render-extrapolation")
-        .description("send help")
-        .defaultValue(false)
-        .visible(() -> this.setting.get() == Settings.DEV && this.predictPos.get())
-        .build()
-    );
+//    private final Setting<Double> lineWidth = sgRender.add(new DoubleSetting.Builder()
+//        .name("line-width")
+//        .description("Adjusts the width of the line")
+//        .defaultValue(1.5)
+//        .min(0.1).max(5.0)
+//        .sliderRange(0.1, 5.0)
+//        .visible(() -> this.render.get() && this.shapeMode.get() != ShapeMode.Sides)
+//        .build()
+//    );
+//    private final Setting<Boolean> renderSwing = sgRender.add(new BoolSetting.Builder()
+//        .name("swing")
+//        .description("Renders hand swinging client-side.")
+//        .defaultValue(true)
+//        .build()
+//    );
+//    private final Setting<Boolean> renderBreak = sgRender.add(new BoolSetting.Builder()
+//        .name("break")
+//        .description("Renders a block overlay over the block the crystals are broken on.")
+//        .defaultValue(false)
+//        .build()
+//    );
+//    private final Setting<Boolean> renderDamageText = sgRender.add(new BoolSetting.Builder()
+//        .name("damage")
+//        .description("Renders crystal damage text in the block overlay.")
+//        .defaultValue(true)
+//        .build()
+//    );
+//    private final Setting<SettingColor> damageColor = sgRender.add(new ColorSetting.Builder()
+//        .name("damage-color")
+//        .description("The color of the damage text.")
+//        .defaultValue(new SettingColor(255, 255, 255))
+//        .visible(this.renderDamageText::get)
+//        .build()
+//    );
+//    private final Setting<Double> damageTextScale = sgRender.add(new DoubleSetting.Builder()
+//        .name("damage-scale")
+//        .description("How big the damage text should be.")
+//        .defaultValue(1.25)
+//        .min(1)
+//        .sliderMax(4)
+//        .visible(renderDamageText::get)
+//        .build()
+//    );
+//    private final Setting<Integer> renderTime = sgRender.add(new IntSetting.Builder()
+//        .name("render-time")
+//        .description("How long to render for.")
+//        .defaultValue(10)
+//        .min(0)
+//        .sliderMax(20)
+//        .build()
+//    );
+//    private final Setting<Integer> renderBreakTime = sgRender.add(new IntSetting.Builder()
+//        .name("break-time")
+//        .description("How long to render breaking for.")
+//        .defaultValue(13)
+//        .min(0)
+//        .sliderMax(20)
+//        .visible(renderBreak::get)
+//        .build()
+//    );
 
     public boolean rotating = false;
-    private Queue<Entity> attackList = new ConcurrentLinkedQueue<Entity>();
-    private Map<Entity, Float> crystalMap = new HashMap<Entity, Float>();
+    private Queue<Entity> attackList = new ConcurrentLinkedQueue<>();
+    private Map<Entity, Float> crystalMap = new HashMap<>();
     private Entity efficientTarget = null;
     private double currentDamage = 0.0;
     private double renderDamage = 0.0;
@@ -1011,22 +1057,19 @@ public class AutoCrystalP extends Module {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPacketReceive(PacketEvent.Receive event) {
         PlaySoundS2CPacket packet;
-        if (Feature.fullNullCheck()) {
-            return;
-        }
-        if (!this.justRender.get() && this.switchTimer.passedMs(this.switchCooldown.get()) && this.explode.get() && this.instant.get() && event.packet instanceof
-            //Entity spawn object
-            EntitySpawnS2CPacket && (this.syncedCrystalPos == null || !this.syncedFeetPlace.get() || this.damageSync.get() == DamageSync.NONE)) {
+        if (mc.player == null || mc.world == null) {return;}
+        if (!this.justRender.get() && this.switchTimer.passedMs(this.switchCooldown.get()) && this.explode.get() && this.instant.get() && event.packet instanceof EntitySpawnS2CPacket
+            && (this.syncedCrystalPos == null || !this.syncedFeetPlace.get() || this.damageSync.get() == DamageSync.NONE)) {
             BlockPos pos;
             EntitySpawnS2CPacket packet2 = (EntitySpawnS2CPacket) event.packet;
             //TODO : check ID
-            if (packet2.getId() == 51 && mc.player.getBlockPos().getSquaredDistance(pos = new BlockPos((int) packet2.getX(), (int) packet2.getY(), (int) packet2.getZ())) + (double) this.predictOffset.get() <= MathUtil.square(this.breakRange.get()) && (this.instantTimer.get() == PredictTimer.NONE || this.instantTimer.get() == PredictTimer.BREAK && this.breakTimer.passedMs(this.breakDelay.get()) || this.instantTimer.get() == PredictTimer.PREDICT && this.predictTimer.passedMs(this.predictDelay.get()))) {
+            if (packet2.getId() == 51 && mc.player.getBlockPos().getSquaredDistance(pos = new BlockPos((int) packet2.getX(), (int) packet2.getY(), (int) packet2.getZ())) + this.predictOffset.get() <= MathHelper.square(this.breakRange.get()) && (this.instantTimer.get() == PredictTimer.NONE || this.instantTimer.get() == PredictTimer.BREAK && this.breakTimer.passedMs(this.breakDelay.get()) || this.instantTimer.get() == PredictTimer.PREDICT && this.predictTimer.passedMs(this.predictDelay.get()))) {
                 if (this.predictSlowBreak(pos.down())) {
                     return;
                 }
                 if (this.predictFriendDmg.get() && (this.antiFriendPop.get() == AntiFriendPop.BREAK || this.antiFriendPop.get() == AntiFriendPop.ALL) && this.isRightThread()) {
                     for (PlayerEntity friend : mc.world.getPlayers()) {
-                        if (friend == null || mc.player.equals(friend) || friend.getBlockPos().getSquaredDistance(pos) > MathUtil.square(this.range.get() + this.placeRange.get()) || !Friends.get().isFriend(friend) || !((double) DamageUtil.calculateDamage(pos, friend) > (double) getHealth(friend) + 0.5))
+                        if (friend == null || mc.player.equals(friend) || friend.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.range.get() + this.placeRange.get()) || !Friends.get().isFriend(friend) || !((double) DamageUtil.calculateDamage(pos, friend) > (double) getHealth(friend) + 0.5))
                             continue;
                         return;
                     }
@@ -1045,7 +1088,7 @@ public class AutoCrystalP extends Module {
                     if ((double) selfDamage + 0.5 < (double) getHealth(mc.player) && selfDamage <= this.maxSelfBreak.get()) {
                         for (PlayerEntity player : mc.world.getPlayers()) {
                             float damage;
-                            if (!(player.getBlockPos().getSquaredDistance(pos) <= MathUtil.square(this.range.get())) || !EntityUtil.isValid(player, this.range.get() + this.breakRange.get()) || this.antiNaked.get() && DamageUtil.isNaked(player) || !((damage = DamageUtil.calculateDamage(pos, player)) > selfDamage || damage > this.minDamage.get() && !DamageUtil.canTakeDamage(this.suicide.get())) && !(damage > getHealth(player)))
+                            if (!(player.getBlockPos().getSquaredDistance(pos) <= MathHelper.square(this.range.get())) || !EntityUtil.isValid(player, this.range.get() + this.breakRange.get()) || this.antiNaked.get() && DamageUtil.isNaked(player) || !((damage = DamageUtil.calculateDamage(pos, player)) > selfDamage || damage > this.minDamage.get() && !DamageUtil.canTakeDamage(this.suicide.get())) && !(damage > getHealth(player)))
                                 continue;
                             if (this.predictRotate.get() && this.eventMode.get() != 2 && (this.rotate.get() == Rotate.BREAK || this.rotate.get() == Rotate.ALL)) {
                                 this.rotateToPos(pos);
@@ -1082,7 +1125,7 @@ public class AutoCrystalP extends Module {
             if (this.soundConfirm.get()) {
                 this.removePos(pos);
             }
-            if (this.threadMode.get() == ThreadMode.SOUND && this.isRightThread() && mc.player != null && mc.player.getBlockPos().getSquaredDistance(pos) < MathUtil.square(this.soundPlayer.get())) {
+            if (this.threadMode.get() == ThreadMode.SOUND && this.isRightThread() && mc.player != null && mc.player.getBlockPos().getSquaredDistance(pos) < MathHelper.square(this.soundPlayer.get())) {
                 this.handlePool(true);
             }
         }
@@ -1126,19 +1169,9 @@ public class AutoCrystalP extends Module {
 
     @EventHandler
     public void onRender(Render3DEvent event) {
+        List<Color> syncColors = getThemeColors();
         if ((this.offHand || this.mainHand || this.switchMode.get() == Switch.CALC) && this.renderPos != null && this.render.get()) {
-
-            switch (this.shapeMode.get()) {
-                case Both:
-                    event.renderer.box(this.renderPos, this.sideColor.get(), this.lineColor.get(), ShapeMode.Both, 0);
-                    break;
-                case Lines:
-                    event.renderer.box(this.renderPos, this.sideColor.get(), this.lineColor.get(), ShapeMode.Lines, 0);
-                    break;
-                case Sides:
-                    event.renderer.box(this.renderPos, this.sideColor.get(), this.lineColor.get(), ShapeMode.Sides, 0);
-                    break;
-            }
+            event.renderer.box(this.renderPos, this.colorSync.get() ? syncColors.get(0) : this.sideColor.get(), this.colorSync.get() ? syncColors.get(1) : this.lineColor.get(), this.shapeMode.get(), 0);
             if (this.text.get()) {
                 //Render2d event ?
                 //RenderUtil.drawText(this.renderPos, (Math.floor(this.renderDamage) == this.renderDamage ? Integer.valueOf((int) this.renderDamage) : String.format("%.1f", this.renderDamage)) + "");
@@ -1289,9 +1322,7 @@ public class AutoCrystalP extends Module {
 
     private boolean check() {
         //TODO : just extract the logic to here
-        if (Feature.fullNullCheck()) {
-            return false;
-        }
+        if (mc.player == null || mc.world == null) {return false;}
         if (this.syncTimer.passedMs(this.damageSyncTime.get())) {
             this.currentSyncTarget = null;
             this.syncedCrystalPos = null;
@@ -1371,7 +1402,7 @@ public class AutoCrystalP extends Module {
                 float beforeDamage = maxDamage;
                 for (PlayerEntity player : mc.world.getPlayers()) {
                     float damage;
-                    if (!(player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathUtil.square(this.range.get())))
+                    if (!(player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathHelper.square(this.range.get())))
                         continue;
                     if (EntityUtil.isValid(player, this.range.get() + this.breakRange.get())) {
                         if (this.antiNaked.get() && DamageUtil.isNaked(player) || !((damage = DamageUtil.calculateDamage(entity, player)) > selfDamage || damage > this.minDamage.get() && !DamageUtil.canTakeDamage(this.suicide.get())) && !(damage > getHealth(player)))
@@ -1419,7 +1450,7 @@ public class AutoCrystalP extends Module {
             return;
         }
         if (this.webAttack.get() && this.webPos != null) {
-            if (mc.player.getBlockPos().getSquaredDistance(this.webPos.up()) > MathUtil.square(this.breakRange.get())) {
+            if (mc.player.getBlockPos().getSquaredDistance(this.webPos.up()) > MathHelper.square(this.breakRange.get())) {
                 this.webPos = null;
             } else {
                 for (Entity entity : mc.world.getOtherEntities(null, new Box(this.webPos.up()))) {
@@ -1465,14 +1496,14 @@ public class AutoCrystalP extends Module {
             }
             this.calculateDamage(this.getTarget(this.targetMode.get() == Target.UNSAFE));
             if (target != null && this.placePos != null) {
-                if (!this.offHand && !this.mainHand && this.autoSwitch.get() != AutoSwitch.NONE && (this.currentDamage > (double) this.minDamage.get() || this.lethalSwitch.get() && getHealth(target) <= this.facePlace.get()) && !this.switchItem()) {
+                if (!this.offHand && !this.mainHand && this.autoSwitch.get() != AutoSwitch.NONE && (this.currentDamage > this.minDamage.get() || this.lethalSwitch.get() && getHealth(target) <= this.facePlace.get()) && !this.switchItem()) {
                     return;
                 }
-                if (this.currentDamage < (double) this.minDamage.get() && this.limitFacePlace.get()) {
+                if (this.currentDamage < this.minDamage.get() && this.limitFacePlace.get()) {
                     crystalLimit = 1;
                 }
-                if (this.currentDamage >= (double) this.minMinDmg.get() && (this.offHand || this.mainHand || this.autoSwitch.get() != AutoSwitch.NONE) && (this.crystalCount < crystalLimit || this.antiSurround.get() && this.lastPos != null && this.lastPos.equals(this.placePos)) && (this.currentDamage > (double) this.minDamage.get() || this.minDmgCount < crystalLimit) && this.currentDamage >= 1.0 && (DamageUtil.isArmorLow(target, this.minArmor.get()) || getHealth(target) <= this.facePlace.get() || this.currentDamage > (double) this.minDamage.get() || this.shouldHoldFacePlace())) {
-                    float damageOffset = this.damageSync.get() == DamageSync.BREAK ? this.dropOff.get() - 5.0f : 0.0f;
+                if (this.currentDamage >= this.minMinDmg.get() && (this.offHand || this.mainHand || this.autoSwitch.get() != AutoSwitch.NONE) && (this.crystalCount < crystalLimit || this.antiSurround.get() && this.lastPos != null && this.lastPos.equals(this.placePos)) && (this.currentDamage > this.minDamage.get() || this.minDmgCount < crystalLimit) && this.currentDamage >= 1.0 && (DamageUtil.isArmorLow(target, this.minArmor.get()) || getHealth(target) <= this.facePlace.get() || this.currentDamage > this.minDamage.get() || this.shouldHoldFacePlace())) {
+                    double damageOffset = this.damageSync.get() == DamageSync.BREAK ? this.dropOff.get() - 5.0f : 0.0f;
                     boolean syncflag = false;
                     if (this.syncedFeetPlace.get() && this.placePos.equals(this.lastPos) && this.isEligibleForFeetSync(target, this.placePos) && !this.syncTimer.passedMs(this.damageSyncTime.get()) && target.equals(this.currentSyncTarget) && target.getPos().equals(this.syncedPlayerPos) && this.damageSync.get() != DamageSync.NONE) {
                         this.syncedCrystalPos = this.placePos;
@@ -1482,7 +1513,7 @@ public class AutoCrystalP extends Module {
                         }
                         syncflag = true;
                     }
-                    if (syncflag || this.currentDamage - (double) damageOffset > this.lastDamage || this.syncTimer.passedMs(this.damageSyncTime.get()) || this.damageSync.get() == DamageSync.NONE) {
+                    if (syncflag || this.currentDamage - damageOffset > this.lastDamage || this.syncTimer.passedMs(this.damageSyncTime.get()) || this.damageSync.get() == DamageSync.NONE) {
                         if (!syncflag && this.damageSync.get() != DamageSync.BREAK) {
                             this.lastDamage = this.currentDamage;
                         }
@@ -1495,7 +1526,7 @@ public class AutoCrystalP extends Module {
                                 this.totemPops.put(target, new Timer().reset());
                             }
                             this.rotateToPos(this.placePos);
-                            if (this.addTolowDmg || this.actualSlowBreak.get() && this.currentDamage < (double) this.minDamage.get()) {
+                            if (this.addTolowDmg || this.actualSlowBreak.get() && this.currentDamage < this.minDamage.get()) {
                                 lowDmgPos.add(this.placePos);
                             }
                             placedPos.add(this.placePos);
@@ -1604,7 +1635,7 @@ public class AutoCrystalP extends Module {
         block0:
         //this.antiSurround - VERY IMPORTANT - special entity check ?? TODO - 1.15
         for (BlockPos pos : BlockUtil.possiblePlacePositions(this.placeRange.get(), this.antiSurround.get(), this.oneDot15.get())) {
-            if (!BlockUtil.rayTracePlaceCheck(pos, (this.raytrace.get() == Raytrace.PLACE || this.raytrace.get() == Raytrace.FULL) && mc.player.getBlockPos().getSquaredDistance(pos) > MathUtil.square(this.placetrace.get()), 1.0f)) {continue;}
+            if (!BlockUtil.rayTracePlaceCheck(pos, (this.raytrace.get() == Raytrace.PLACE || this.raytrace.get() == Raytrace.FULL) && mc.player.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.placetrace.get()), 1.0f)) {continue;}
             float selfDamage = -1.0f;
             if (DamageUtil.canTakeDamage(this.suicide.get())) {
                 selfDamage = DamageUtil.calculateDamage(pos, mc.player);
@@ -1617,7 +1648,7 @@ public class AutoCrystalP extends Module {
                     boolean friendPop = false;
                     for (PlayerEntity friend : mc.world.getPlayers()) {
                         float friendDamage;
-                        if (friend == null || mc.player.equals(friend) || friend.getBlockPos().getSquaredDistance(pos) > MathUtil.square(this.range.get() + this.placeRange.get()) || !Friends.get().isFriend(friend) || !((double) (friendDamage = DamageUtil.calculateDamage(pos, friend)) > (double) getHealth(friend) + 0.5)) {
+                        if (friend == null || mc.player.equals(friend) || friend.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.range.get() + this.placeRange.get()) || !Friends.get().isFriend(friend) || !((double) (friendDamage = DamageUtil.calculateDamage(pos, friend)) > (double) getHealth(friend) + 0.5)) {
                             continue;
                         }
                         friendPop = true;
@@ -1668,7 +1699,7 @@ public class AutoCrystalP extends Module {
                     maxSelfDamage = selfDamage;
                     continue;
                 }
-                if (this.antiFriendPop.get() != AntiFriendPop.ALL && this.antiFriendPop.get() != AntiFriendPop.PLACE || player == null || !(player.getBlockPos().getSquaredDistance(pos) <= MathUtil.square(this.range.get() + this.placeRange.get())) || !Friends.get().isFriend(player) || !((double) (friendDamage = DamageUtil.calculateDamage(pos, player)) > (double) getHealth(player) + 0.5))
+                if (this.antiFriendPop.get() != AntiFriendPop.ALL && this.antiFriendPop.get() != AntiFriendPop.PLACE || player == null || !(player.getBlockPos().getSquaredDistance(pos) <= MathHelper.square(this.range.get() + this.placeRange.get())) || !Friends.get().isFriend(player) || !((double) (friendDamage = DamageUtil.calculateDamage(pos, player)) > (double) getHealth(player) + 0.5))
                     continue;
                 maxDamage = maxDamageBefore;
                 currentTarget = currentTargetBefore;
@@ -1709,17 +1740,14 @@ public class AutoCrystalP extends Module {
         if (unsafe && currentTarget == null) {
             return this.getTarget(false);
         }
-        //TODO - REWRITE
+        //TODO - check inventory part
         if (this.predictPos.get() && currentTarget != null) {
-            GameProfile profile = new GameProfile(currentTarget.getUuid() == null ? UUID.fromString("8af022c8-b926-41a0-8b79-2b544ff00fcf") : currentTarget.getUuid(), currentTarget.getName().toString());
+            GameProfile profile = new GameProfile(currentTarget.getUuid() == null ? UUID.fromString("8af022c8-b926-41a0-8b79-2b544ff00fcf") : currentTarget.getUuid(), currentTarget.getDisplayName().toString());
             OtherClientPlayerEntity newTarget = new OtherClientPlayerEntity(mc.world, profile);
             Vec3d extrapolatePosition = MathUtil.extrapolatePlayerPosition(currentTarget, this.predictTicks.get());
             newTarget.copyPositionAndRotation(currentTarget);
-            extrapolatePosition = newTarget.getPos();
-//            newTarget.posX = extrapolatePosition.x;
-//            newTarget.posY = extrapolatePosition.y;
-//            newTarget.posZ = extrapolatePosition.z;
-            newTarget.setHealth(getHealth(currentTarget));
+            newTarget.setPos(extrapolatePosition.x, extrapolatePosition.y, extrapolatePosition.z);
+            newTarget.setHealth(EntityUtil.getHealth(currentTarget));
             inventoryManager.copyInventory(currentTarget.getInventory());
             currentTarget = newTarget;
         }
@@ -1881,7 +1909,7 @@ public class AutoCrystalP extends Module {
     }
 
     private boolean isValid(Entity entity) {
-        return entity != null && mc.player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathUtil.square(this.breakRange.get()) && (this.raytrace.get() == Raytrace.NONE || this.raytrace.get() == Raytrace.PLACE || mc.player.canSee(entity) || !mc.player.canSee(entity) && mc.player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathUtil.square(this.breaktrace.get()));
+        return entity != null && mc.player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathHelper.square(this.breakRange.get()) && (this.raytrace.get() == Raytrace.NONE || this.raytrace.get() == Raytrace.PLACE || mc.player.canSee(entity) || !mc.player.canSee(entity) && mc.player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathHelper.square(this.breaktrace.get()));
     }
 
     private boolean isEligibleForFeetSync(PlayerEntity player, BlockPos pos) {
@@ -2044,5 +2072,10 @@ public class AutoCrystalP extends Module {
                 this.autoCrystal.threadOngoing.set(false);
             }
         }
+    }
+    //TODO : move into util
+    private List<Color> getThemeColors() {
+        MeteorGuiTheme theme = (MeteorGuiTheme) GuiThemes.get();
+        return Arrays.asList(theme.accentColor.get(), theme.outlineColor.get());
     }
 }
