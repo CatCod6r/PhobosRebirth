@@ -150,23 +150,21 @@ public class EntityUtil implements Util {
             if (isntValid(player, distance)) {
                 continue;
             }
-            if (closest == null) {
-                closest = player;
-            } else {
+            if (closest != null) {
                 if (mc.player.getBlockPos().getSquaredDistance(player.getPos()) >= mc.player.getBlockPos().getSquaredDistance(closest.getPos())) {
                     continue;
                 }
-                closest = player;
             }
+            closest = player;
         }
         return closest;
     }
     //TODO : rewrite
     public static void swingArmNoPacket(Hand hand, ClientPlayerEntity entity) {
         final ItemStack stack = entity.getActiveItem();
-//        if (!stack.isEmpty() && stack.getItem().onEntitySwing(stack, entity)) {
-//            return;
-//        }
+        if (!stack.isEmpty()) {
+            return;
+        }
         if (!entity.handSwinging || entity.handSwingProgress >= entity.lastHandSwingProgress  / 2 || entity.handSwingProgress < 0) {
             entity.handSwingProgress = -1;
             entity.handSwinging = true;

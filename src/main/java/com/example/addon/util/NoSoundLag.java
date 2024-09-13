@@ -13,7 +13,7 @@ import static com.example.addon.util.Util.mc;
 public class NoSoundLag {
     public static void removeEntities(PlaySoundS2CPacket packet, double range) {
         BlockPos pos = new BlockPos((int) packet.getX(), (int) packet.getY(), (int) packet.getZ());
-        ArrayList<Entity> toRemove = new ArrayList<Entity>();
+        ArrayList<Entity> toRemove = new ArrayList<>();
         for (Entity entity : mc.world.getEntities()) {
             if (!(entity instanceof EndCrystalEntity) || !(entity.getBlockPos().getSquaredDistance(pos) <= MathHelper.square(range)))
                 continue;

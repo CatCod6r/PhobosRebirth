@@ -1,13 +1,10 @@
 package com.example.addon.util;
 
-import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import net.minecraft.block.*;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.*;
@@ -18,9 +15,6 @@ import java.util.stream.Collectors;
 
 public class BlockUtil
     implements Util {
-    public static final List<Block> blackList = Arrays.asList(Blocks.ENDER_CHEST, Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.CRAFTING_TABLE, Blocks.ANVIL, Blocks.BREWING_STAND, Blocks.HOPPER, Blocks.DROPPER, Blocks.DISPENSER, Blocks.ACACIA_TRAPDOOR
-        //needs to be added all trapdoor
-        , Blocks.ENCHANTING_TABLE);
     public static final List<Block> shulkerList = Arrays.asList(Blocks.WHITE_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX, Blocks.BROWN_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.BLACK_SHULKER_BOX);
     public static List<Block> unSolidBlocks = Arrays.asList(Blocks.LAVA_CAULDRON , Blocks.FLOWER_POT, Blocks.SNOW, Blocks.YELLOW_CARPET
         //needs to get all of carpets
@@ -73,7 +67,7 @@ public class BlockUtil
         BlockPos boost2 = blockPos.add(0, 2, 0);
         try {
             //Check for bedrock or obby
-            if (getBlock(blockPos) != Blocks.BEDROCK && mc.world.getBlockState(blockPos).getBlock() != Blocks.OBSIDIAN) {
+            if (getBlock(blockPos) != Blocks.BEDROCK && BlockUtil.getBlock(blockPos) != Blocks.OBSIDIAN) {
                 return false;
             }
             //Check for air above and not 1.15
@@ -106,6 +100,7 @@ public class BlockUtil
     }
 
     public static void placeCrystalOnBlock(BlockPos pos, Hand hand, boolean swing, boolean exactHand) {
+        if (pos == null) return;
         BlockHitResult result = mc.world.raycast(
             new RaycastContext(
                 new Vec3d(mc.player.getX(), mc.player.getY() + mc.player.getEyeHeight(mc.player.getPose()), mc.player.getZ()),
@@ -115,16 +110,9 @@ public class BlockUtil
                 mc.player
             )
         );
-        Direction facing = result.getSide() == null || result.getSide() == null ? Direction.UP : result.getSide();
-        if (mc.player != null) {
-            BlockHitResult blockHitResult = new BlockHitResult(mc.player.getPos(), facing, pos, false);
-            ActionResult actionResult = mc.interactionManager.interactBlock(mc.player, hand, blockHitResult);
-            if (actionResult == ActionResult.SUCCESS) {
-                mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(hand, blockHitResult, 0));
-            }
-        }
+        mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(hand, result, 0));
         if (swing) {
-            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(hand));
+            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(exactHand ? hand : Hand.MAIN_HAND));
         }
     }
 

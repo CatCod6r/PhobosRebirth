@@ -24,9 +24,7 @@ import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.OtherClientPlayerEntity;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -42,7 +40,6 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
-import org.lwjgl.glfw.GLFW;
 
 import static com.example.addon.manager.Managers.*;
 import static com.example.addon.util.EntityUtil.getHealth;
@@ -63,7 +60,6 @@ public class AutoCrystalP extends Module {
     public static Set<BlockPos> brokenPos = new HashSet<>();
     private static AutoCrystalP instance;
     private final Timer switchTimer = new Timer();
-    public final Timer threadTimer = new Timer();
     private final Timer manualTimer = new Timer();
     private final Timer breakTimer = new Timer();
     private final Timer placeTimer = new Timer();
@@ -116,26 +112,28 @@ public class AutoCrystalP extends Module {
     );
     private final Setting<Boolean> breakSwing = sgDev.add(new BoolSetting.Builder()
         .name("break-swing")
-        .description("")
+        .description("Shows swing animation when breaking.")
         .defaultValue(true)
         .build()
     );
+    //TODO fix
     private final Setting<Boolean> placeSwing = sgDev.add(new BoolSetting.Builder()
         .name("place-swing")
-        .description("")
+        .description("Shows swing animation when placing.")
         .defaultValue(false)
         .build()
     );
     private final Setting<Boolean> exactHand = sgDev.add(new BoolSetting.Builder()
         .name("exact-hand")
-        .description("")
+        .description("Swing the exact hand that is being used.")
         .defaultValue(false)
         .visible(this.placeSwing::get)
         .build()
     );
+    //TODO - glitches sometimes
     private final Setting<Boolean> justRender = sgDev.add(new BoolSetting.Builder()
         .name("just-render")
-        .description("")
+        .description("Only shows renders.")
         .defaultValue(false)
         .build()
     );
@@ -148,7 +146,7 @@ public class AutoCrystalP extends Module {
     );
     private final Setting<Logic> logic = sgDev.add(new EnumSetting.Builder<Logic>()
         .name("logic")
-        .description("Logic")
+        .description("Order of operations.")
         .defaultValue(Logic.BREAKPLACE)
         .build()
     );
@@ -169,7 +167,7 @@ public class AutoCrystalP extends Module {
         .build()
     );
     private final Setting<Double> dropOff = sgDev.add(new DoubleSetting.Builder()
-        .name("drop-fff")
+        .name("drop-off")
         .description("")
         .min(0.0)
         .sliderMax(10.0)
@@ -328,8 +326,8 @@ public class AutoCrystalP extends Module {
     );
     ///MISC///
     private final Setting<Integer> switchCooldown = sgMisc.add(new IntSetting.Builder()
-        .name("cooldown")
-        .description("Cooldown")
+        .name("switch-cooldown")
+        .description("The delay in ms to wait after switching hotbar slots.")
         .defaultValue(500)
         .min(0)
         .max(1000)
@@ -377,7 +375,7 @@ public class AutoCrystalP extends Module {
     );
     private final Setting<Boolean> antiNaked = sgMisc.add(new BoolSetting.Builder()
         .name("anti-naked")
-        .description("")
+        .description("Avoids attacking players with no armor.")
         .defaultValue(true)
         .build()
     );
@@ -392,7 +390,7 @@ public class AutoCrystalP extends Module {
     private final Setting<Target> targetMode = sgMisc.add(new EnumSetting.Builder<Target>()
         .name("target")
         .description("")
-        .defaultValue(Target.CLOSEST)
+        .defaultValue(Target.UNSAFE)
         .build()
     );
     private final Setting<Integer> minArmor = sgMisc.add(new IntSetting.Builder()
@@ -460,7 +458,7 @@ public class AutoCrystalP extends Module {
     private final Setting<Boolean> fullCalc = sgMisc.add(new BoolSetting.Builder()
         .name("extra-calc")
         .description("")
-        .defaultValue(false)
+        .defaultValue(true)
         .build()
     );
     private final Setting<Boolean> sound = sgMisc.add(new BoolSetting.Builder()
@@ -540,17 +538,17 @@ public class AutoCrystalP extends Module {
     ///Place
     private final Setting<Boolean> place = sgPlace.add(new BoolSetting.Builder()
         .name("place")
-        .description("")
+        .description("Places crystals.")
         .defaultValue(true)
         .build()
     );
     private final Setting<Integer> placeDelay = sgPlace.add(new IntSetting.Builder()
         .name("place-delay")
-        .description("")
+        .description("Delay in ms between crystal placements.")
         .defaultValue(25)
         .min(0)
-        .max(500)
-        .sliderRange(0, 500)
+        .max(2000)
+        .sliderRange(0, 2000)
         .build()
     );
     private final Setting<Double> placeRange = sgPlace.add(new DoubleSetting.Builder()
@@ -597,12 +595,13 @@ public class AutoCrystalP extends Module {
         .visible(this.place::get)
         .build()
     );
+    //TODO - default at 8, fix
     private final Setting<Double> facePlace = sgPlace.add(new DoubleSetting.Builder()
         .name("face-place")
         .description("")
         .min(0.1)
         .sliderMax(20.0)
-        .defaultValue(8.0)
+        .defaultValue(20.0)
         .visible(this.place::get)
         .build()
     );
@@ -629,8 +628,15 @@ public class AutoCrystalP extends Module {
         .visible(this.place::get)
         .build()
     );
-    private final Setting<Boolean> oneDot15 = sgPlace.add(new BoolSetting.Builder()
+    public final Setting<Boolean> oneDot15 = sgPlace.add(new BoolSetting.Builder()
         .name("1.15")
+        .description("")
+        .defaultValue(true)
+        .visible(this.place::get)
+        .build()
+    );
+    public final Setting<Boolean> safety = sgPlace.add(new BoolSetting.Builder()
+        .name("safety-player")
         .description("")
         .defaultValue(false)
         .visible(this.place::get)
@@ -673,7 +679,7 @@ public class AutoCrystalP extends Module {
     ///Break///
     private final Setting<Boolean> explode = sgBreak.add(new BoolSetting.Builder()
         .name("break")
-        .description("")
+        .description("Breaks crystals.")
         .defaultValue(true)
         .build()
     );
@@ -686,10 +692,10 @@ public class AutoCrystalP extends Module {
     );
     private final Setting<Integer> breakDelay = sgBreak.add(new IntSetting.Builder()
         .name("break-delay")
-        .description("")
+        .description("Delay in ms between crystal breaks.")
         .defaultValue(50)
         .min(0)
-        .sliderMax(500)
+        .sliderMax(2000)
         .visible(this.explode::get)
         .build()
     );
@@ -1456,7 +1462,7 @@ public class AutoCrystalP extends Module {
                 }
             }
         }
-        if (this.shouldSlowBreak(true) && maxDamage < this.minDamage.get() && (target == null || !(getHealth(target) <= this.facePlace.get()) || !this.breakTimer.passedMs(this.facePlaceSpeed.get()) && this.slowFaceBreak.get() && InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) && this.holdFacePlace.get() && this.holdFaceBreak.get())) {
+        if (this.shouldSlowBreak(true) && maxDamage < this.minDamage.get() && (target == null || !(getHealth(target) <= this.facePlace.get()) || !this.breakTimer.passedMs(this.facePlaceSpeed.get()) && this.slowFaceBreak.get() && mc.mouse.wasLeftButtonClicked() && this.holdFacePlace.get() && this.holdFaceBreak.get())) {
             this.efficientTarget = null;
             return;
         }
@@ -1820,7 +1826,7 @@ public class AutoCrystalP extends Module {
                 this.didRotation = true;
             }
         }
-        if ((this.offHand || this.mainHand) && this.manual.get() && this.manualTimer.passedMs(this.manualBreak.get()) && InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.field_31997) && mc.player.getOffHandStack().getItem() != Items.GOLDEN_APPLE && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.GOLDEN_APPLE && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.BOW && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.EXPERIENCE_BOTTLE && (result = mc.crosshairTarget) != null) {
+        if ((this.offHand || this.mainHand) && this.manual.get() && this.manualTimer.passedMs(this.manualBreak.get()) && mc.mouse.wasRightButtonClicked() && mc.player.getOffHandStack().getItem() != Items.GOLDEN_APPLE && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.GOLDEN_APPLE && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.BOW && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.EXPERIENCE_BOTTLE && (result = mc.crosshairTarget) != null) {
             switch (result.getType()) {
                 case ENTITY: {
                     Entity entity = mc.targetedEntity;
@@ -2003,8 +2009,7 @@ public class AutoCrystalP extends Module {
         }
     }
 
-    private static class RAutoCrystal
-        implements Runnable {
+    private static class RAutoCrystal implements Runnable {
         private static RAutoCrystal instance;
         private AutoCrystalP autoCrystal;
 
