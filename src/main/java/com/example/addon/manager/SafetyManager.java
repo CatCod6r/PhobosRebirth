@@ -1,11 +1,7 @@
 package com.example.addon.manager;
 
-import com.example.addon.features.Feature;
 import com.example.addon.features.modules.AutoCrystalP;
-import com.example.addon.util.BlockUtil;
-import com.example.addon.util.DamageUtil;
-import com.example.addon.util.EntityUtil;
-import com.example.addon.util.Timer;
+import com.example.addon.util.*;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
@@ -14,24 +10,14 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SafetyManager
-    extends Feature
-    implements Runnable {
-    private final Timer syncTimer = new Timer();
+public class SafetyManager implements Runnable, Util {
     private final AtomicBoolean SAFE = new AtomicBoolean(false);
     private ScheduledExecutorService service;
-
     private boolean safety = false;
-    private int safetyCheck = 50;
-
-    private boolean oneDot15 = false;//test with true
-
-    //class managers
+    private boolean oneDot15 = false;
 
     @Override
     public void run() {
@@ -42,10 +28,10 @@ public class SafetyManager
     }
 
     public void doSafetyCheck() {
-        if (!SafetyManager.fullNullCheck()) {
+        if (!(mc.player == null || mc.world == null)) {
             PlayerEntity closest;
             boolean safe = true;
-            PlayerEntity entityPlayer = closest = safety != false ? EntityUtil.getClosestEnemy(18.0) : null;
+            PlayerEntity entityPlayer = closest = safety ? EntityUtil.getClosestEnemy(18.0) : null;
             if (safety && closest == null) {
                 this.SAFE.set(true);
                 return;
@@ -67,26 +53,5 @@ public class SafetyManager
             }
             this.SAFE.set(safe);
         }
-    }
-
-    public void onUpdate() {
-        this.run();
-    }
-
-    public String getSafetyString() {
-        if (this.SAFE.get()) {
-            return "\u00a7aSecure";
-        }
-        return "\u00a7cUnsafe";
-    }
-
-    public boolean isSafe() {
-        return this.SAFE.get();
-    }
-
-    public ScheduledExecutorService getService() {
-        ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-        service.scheduleAtFixedRate(this, 0L, safetyCheck, TimeUnit.MILLISECONDS);
-        return service;
     }
 }

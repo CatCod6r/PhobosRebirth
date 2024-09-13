@@ -38,8 +38,8 @@ public class NonNullList<E> extends AbstractList<E> {
     }
 
     @Nonnull
-    public E get(int p_get_1_) {
-        return this.delegate.get(p_get_1_);
+    public E get(int num) {
+        return this.delegate.get(num);
     }
 
     public E set(int p_set_1_, E p_set_2_) {
@@ -64,8 +64,8 @@ public class NonNullList<E> extends AbstractList<E> {
         if (this.defaultElement == null) {
             super.clear();
         } else {
-            for(int lvt_1_1_ = 0; lvt_1_1_ < this.size(); ++lvt_1_1_) {
-                this.set(lvt_1_1_, this.defaultElement);
+            for (int i = 0; i < this.size(); ++i) {
+                this.set(i, this.defaultElement);
             }
         }
 
