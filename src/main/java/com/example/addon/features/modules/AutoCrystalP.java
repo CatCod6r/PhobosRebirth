@@ -17,7 +17,6 @@ import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.utils.misc.Keybind;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
@@ -43,7 +42,6 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
-import org.joml.Vector3d;
 import org.lwjgl.glfw.GLFW;
 
 import static com.example.addon.manager.Managers.*;
@@ -57,7 +55,7 @@ public class AutoCrystalP extends Module {
     private final SettingGroup sgDev = settings.createGroup("Dev");
     private final SettingGroup sgMisc = settings.createGroup("Misc");
     private final SettingGroup sgPlace = settings.createGroup("Place");
-    private final SettingGroup sgBreak = settings.createGroup("Attack");
+    private final SettingGroup sgBreak = settings.createGroup("Break");
     private final SettingGroup sgRender = settings.createGroup("Render");
     public static PlayerEntity target = null;
     public static Set<BlockPos> lowDmgPos = new ConcurrentSet();
@@ -85,6 +83,7 @@ public class AutoCrystalP extends Module {
 //        .defaultValue(false)
 //        .build()
 //    );
+    //TODO fix
     private final Setting<Boolean> removeAfterAttack = sgDev.add(new BoolSetting.Builder()
         .name("attack-remove")
         .description("")
@@ -835,34 +834,34 @@ public class AutoCrystalP extends Module {
     private final Setting<SettingColor> sideColor = sgRender.add(new ColorSetting.Builder()
         .name("side-color")
         .description("The color of the block overlay.")
-        .defaultValue(new SettingColor(255, 255, 255, 45))
+        .defaultValue(new SettingColor(100, 25, 125, 100))
         .visible(this.render::get)
         .build()
     );
     private final Setting<SettingColor> lineColor = sgRender.add(new ColorSetting.Builder()
         .name("line-color")
         .description("The line color of the block outline.")
-        .defaultValue(new SettingColor(255, 255, 255, 255))
+        .defaultValue(new SettingColor(0, 255, 30, 255))
         .visible(() -> this.render.get() && this.shapeMode.get() != ShapeMode.Sides)
         .build()
     );
     private final Setting<Boolean> colorSync = sgRender.add(new BoolSetting.Builder()
         .name("color-sync")
-        .description("Syncs the outline colors with the client's current theme.")
+        .description("Syncs the outline colors with the client's current theme (Accent + outline).")
         .defaultValue(false)
         .visible(this.render::get)
         .build()
     );
-    private final Setting<Boolean> text = sgRender.add(new BoolSetting.Builder()
-        .name("text")
-        .description("text text text")
-        .defaultValue(false)
-        .visible(this.render::get)
-        .build()
-    );
-//    private final Setting<Double> lineWidth = sgRender.add(new DoubleSetting.Builder()
-//        .name("line-width")
-//        .description("Adjusts the width of the line")
+//    private final Setting<Boolean> text = sgRender.add(new BoolSetting.Builder()
+//        .name("text")
+//        .description("text text text")
+//        .defaultValue(false)
+//        .visible(this.render::get)
+//        .build()
+//    );
+//    public final Setting<Double> outlineWidth = sgRender.add(new DoubleSetting.Builder()
+//        .name("outline-width")
+//        .description("Outline width.")
 //        .defaultValue(1.5)
 //        .min(0.1).max(5.0)
 //        .sliderRange(0.1, 5.0)
@@ -951,11 +950,6 @@ public class AutoCrystalP extends Module {
     private BlockPos syncedCrystalPos;
     private PlaceInfo placeInfo;
     private boolean addTolowDmg;
-    static Modules modules = Modules.get();
-    private final Vector3d vec3 = new Vector3d();
-    private Box renderBoxOne, renderBoxTwo;
-    private final BlockPos.Mutable placeRenderPos = new BlockPos.Mutable();
-    private final BlockPos.Mutable breakRenderPos = new BlockPos.Mutable();
 
     public AutoCrystalP() {
         super(Addon.CATEGORY, "AutoCrystalP", "Best CA on the market");
@@ -1172,10 +1166,10 @@ public class AutoCrystalP extends Module {
         List<Color> syncColors = getThemeColors();
         if ((this.offHand || this.mainHand || this.switchMode.get() == Switch.CALC) && this.renderPos != null && this.render.get()) {
             event.renderer.box(this.renderPos, this.colorSync.get() ? syncColors.get(0) : this.sideColor.get(), this.colorSync.get() ? syncColors.get(1) : this.lineColor.get(), this.shapeMode.get(), 0);
-            if (this.text.get()) {
-                //Render2d event ?
-                //RenderUtil.drawText(this.renderPos, (Math.floor(this.renderDamage) == this.renderDamage ? Integer.valueOf((int) this.renderDamage) : String.format("%.1f", this.renderDamage)) + "");
-            }
+//            if (this.text.get()) {
+//                Render2d event ???
+//                RenderUtil.drawText(this.renderPos, (Math.floor(this.renderDamage) == this.renderDamage ? Integer.valueOf((int) this.renderDamage) : String.format("%.1f", this.renderDamage)) + "");
+//            }
         }
     }
 // TODO : some other time
@@ -1321,7 +1315,6 @@ public class AutoCrystalP extends Module {
     }
 
     private boolean check() {
-        //TODO : just extract the logic to here
         if (mc.player == null || mc.world == null) {return false;}
         if (this.syncTimer.passedMs(this.damageSyncTime.get())) {
             this.currentSyncTarget = null;
@@ -1505,7 +1498,7 @@ public class AutoCrystalP extends Module {
                 if (this.currentDamage >= this.minMinDmg.get() && (this.offHand || this.mainHand || this.autoSwitch.get() != AutoSwitch.NONE) && (this.crystalCount < crystalLimit || this.antiSurround.get() && this.lastPos != null && this.lastPos.equals(this.placePos)) && (this.currentDamage > this.minDamage.get() || this.minDmgCount < crystalLimit) && this.currentDamage >= 1.0 && (DamageUtil.isArmorLow(target, this.minArmor.get()) || getHealth(target) <= this.facePlace.get() || this.currentDamage > this.minDamage.get() || this.shouldHoldFacePlace())) {
                     double damageOffset = this.damageSync.get() == DamageSync.BREAK ? this.dropOff.get() - 5.0f : 0.0f;
                     boolean syncflag = false;
-                    if (this.syncedFeetPlace.get() && this.placePos.equals(this.lastPos) && this.isEligibleForFeetSync(target, this.placePos) && !this.syncTimer.passedMs(this.damageSyncTime.get()) && target.equals(this.currentSyncTarget) && target.getPos().equals(this.syncedPlayerPos) && this.damageSync.get() != DamageSync.NONE) {
+                    if (this.syncedFeetPlace.get() && this.placePos.equals(this.lastPos) && this.isEligibleForFeetSync(target, this.placePos) && !this.syncTimer.passedMs(this.damageSyncTime.get()) && target.equals(this.currentSyncTarget) && target.getBlockPos().equals(this.syncedPlayerPos) && this.damageSync.get() != DamageSync.NONE) {
                         this.syncedCrystalPos = this.placePos;
                         this.lastDamage = this.currentDamage;
                         if (this.fullSync.get()) {
@@ -1631,7 +1624,6 @@ public class AutoCrystalP extends Module {
             state = BlockUtil.getState(playerPos);
             mc.world.removeBlock(playerPos, false);
         }
-
         block0:
         //this.antiSurround - VERY IMPORTANT - special entity check ?? TODO - 1.15
         for (BlockPos pos : BlockUtil.possiblePlacePositions(this.placeRange.get(), this.antiSurround.get(), this.oneDot15.get())) {
@@ -1640,8 +1632,7 @@ public class AutoCrystalP extends Module {
             if (DamageUtil.canTakeDamage(this.suicide.get())) {
                 selfDamage = DamageUtil.calculateDamage(pos, mc.player);
             }
-            if (!((double) selfDamage + 0.5 < (double) getHealth(mc.player)) || !(selfDamage <= this.maxSelfPlace.get()))
-                continue;
+            if (!(selfDamage + 0.5 < getHealth(mc.player)) || !(selfDamage <= this.maxSelfPlace.get())) {continue;}
             if (targetedPlayer != null) {
                 float playerDamage = DamageUtil.calculateDamage(pos, targetedPlayer);
                 if (this.calcEvenIfNoDamage.get() && (this.antiFriendPop.get() == AntiFriendPop.ALL || this.antiFriendPop.get() == AntiFriendPop.PLACE)) {
@@ -1716,15 +1707,13 @@ public class AutoCrystalP extends Module {
         this.currentDamage = maxDamage;
         this.placePos = currentPos;
     }
-
     private PlayerEntity getTarget(boolean unsafe) {
         if (this.targetMode.get() == Target.DAMAGE) {
             return null;
         }
         PlayerEntity currentTarget = null;
         for (PlayerEntity player : mc.world.getPlayers()) {
-            if (EntityUtil.isntValid(player, this.placeRange.get() + this.range.get()) || this.antiNaked.get() && DamageUtil.isNaked(player) || unsafe && EntityUtil.isSafe(player))
-                continue;
+            if (EntityUtil.isntValid(player, this.placeRange.get() + this.range.get()) || this.antiNaked.get() && DamageUtil.isNaked(player) || unsafe && EntityUtil.isSafe(player)) {continue;}
             if (this.minArmor.get() > 0 && DamageUtil.isArmorLow(player, this.minArmor.get())) {
                 currentTarget = player;
                 break;
@@ -1733,8 +1722,7 @@ public class AutoCrystalP extends Module {
                 currentTarget = player;
                 continue;
             }
-            if (!(mc.player.getBlockPos().getSquaredDistance(player.getPos()) < mc.player.getBlockPos().getSquaredDistance(currentTarget.getPos())))
-                continue;
+            if (!(mc.player.getBlockPos().getSquaredDistance(player.getPos()) < mc.player.getBlockPos().getSquaredDistance(currentTarget.getPos()))) {continue;}
             currentTarget = player;
         }
         if (unsafe && currentTarget == null) {
@@ -1989,14 +1977,6 @@ public class AutoCrystalP extends Module {
         BREAK
     }
 
-    public enum Settings {
-        PLACE,
-        BREAK,
-        RENDER,
-        MISC,
-        DEV
-    }
-
     public enum RenderMode {
         Normal,
         Smooth,
@@ -2042,8 +2022,7 @@ public class AutoCrystalP extends Module {
         @Override
         public void run() {
             if (this.autoCrystal.threadMode.get() == ThreadMode.WHILE) {
-                Modules modules = Modules.get();
-                while (modules.get(AutoCrystalP.class).isActive() && this.autoCrystal.threadMode.get() == ThreadMode.WHILE) {
+                while (this.autoCrystal.isActive() && this.autoCrystal.threadMode.get() == ThreadMode.WHILE) {
                     while (eventManager.ticksOngoing()) {
                     }
                     if (this.autoCrystal.shouldInterrupt.get()) {
@@ -2063,7 +2042,7 @@ public class AutoCrystalP extends Module {
                         e.printStackTrace();
                     }
                 }
-            } else if (this.autoCrystal.threadMode.get() != ThreadMode.NONE && modules.get(AutoCrystalP.class).isActive()) {
+            } else if (this.autoCrystal.threadMode.get() != ThreadMode.NONE && this.autoCrystal.isActive()) {
                 while (eventManager.ticksOngoing()) {
                 }
                 this.autoCrystal.threadOngoing.set(true);
