@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class NonNullList<E> extends AbstractList<E> {
@@ -15,17 +14,6 @@ public class NonNullList<E> extends AbstractList<E> {
 
     public static <E> NonNullList<E> create() {
         return new NonNullList();
-    }
-
-    public static <E> NonNullList<E> withSize(int p_withSize_0_, E p_withSize_1_) {
-        Validate.notNull(p_withSize_1_);
-        Object[] lvt_2_1_ = new Object[p_withSize_0_];
-        Arrays.fill(lvt_2_1_, p_withSize_1_);
-        return new NonNullList(Arrays.asList(lvt_2_1_), p_withSize_1_);
-    }
-
-    public static <E> NonNullList<E> from(E p_from_0_, E... p_from_1_) {
-        return new NonNullList(Arrays.asList(p_from_1_), p_from_0_);
     }
 
     protected NonNullList() {

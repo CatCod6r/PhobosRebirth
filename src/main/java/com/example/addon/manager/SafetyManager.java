@@ -1,6 +1,6 @@
 package com.example.addon.manager;
 
-import com.example.addon.features.modules.AutoCrystalP;
+import com.example.addon.modules.AutoCrystal;
 import com.example.addon.util.*;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.entity.Entity;
@@ -10,19 +10,16 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SafetyManager implements Runnable, Util {
     private final AtomicBoolean SAFE = new AtomicBoolean(false);
-    private ScheduledExecutorService service;
-    private boolean safety = false;
-    private boolean oneDot15 = false;
+    private final AutoCrystal autoCrystal =  AutoCrystal.getInstance();
 
     @Override
     public void run() {
         Modules modules = Modules.get();
-        if (modules.get(AutoCrystalP.class).isActive() || AutoCrystalP.getInstance().threadMode.get() == AutoCrystalP.ThreadMode.NONE) {
+        if (modules.get(AutoCrystal.class).isActive() || AutoCrystal.getInstance().threadMode.get() == AutoCrystal.ThreadMode.NONE) {
             this.doSafetyCheck();
         }
     }
@@ -31,8 +28,8 @@ public class SafetyManager implements Runnable, Util {
         if (!(mc.player == null || mc.world == null)) {
             PlayerEntity closest;
             boolean safe = true;
-            PlayerEntity entityPlayer = closest = safety ? EntityUtil.getClosestEnemy(18.0) : null;
-            if (safety && closest == null) {
+            PlayerEntity entityPlayer = closest = autoCrystal.safety.get() ? EntityUtil.getClosestEnemy(18.0) : null;
+            if (autoCrystal.safety.get() && closest == null) {
                 this.SAFE.set(true);
                 return;
             }
@@ -44,7 +41,7 @@ public class SafetyManager implements Runnable, Util {
                 break;
             }
             if (safe) {
-                for (BlockPos pos : BlockUtil.possiblePlacePositions(4.0f, false, oneDot15)) {
+                for (BlockPos pos : BlockUtil.possiblePlacePositions(4.0f, false, autoCrystal.oneDot15.get())) {
                     if (!((double) DamageUtil.calculateDamage(pos, mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(pos) < 40.0))
                         continue;
                     safe = false;
