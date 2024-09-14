@@ -1,7 +1,7 @@
 package com.example.addon;
 
 import com.example.addon.commands.CommandExample;
-import com.example.addon.features.modules.AutoCrystalP;
+import com.example.addon.modules.AutoCrystal;
 import com.example.addon.hud.HudExample;
 import com.mojang.logging.LogUtils;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
@@ -22,7 +22,7 @@ public class Addon extends MeteorAddon {
         LOG.info("Initializing Meteor Addon Template");
 
         // Modules
-        Modules.get().add(new AutoCrystalP());
+        Modules.get().add(new AutoCrystal());
 
         // Commands
         Commands.add(new CommandExample());

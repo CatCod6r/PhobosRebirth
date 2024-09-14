@@ -3,7 +3,6 @@ package com.example.addon.util;
 import net.minecraft.block.*;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -99,7 +98,7 @@ public class BlockUtil
         return mc.world.getBlockState(pos);
     }
 
-    public static void placeCrystalOnBlock(BlockPos pos, Hand hand, boolean swing, boolean exactHand) {
+    public static void placeCrystalOnBlock(BlockPos pos, Hand hand) {
         if (pos == null) return;
         BlockHitResult result = mc.world.raycast(
             new RaycastContext(
@@ -111,9 +110,6 @@ public class BlockUtil
             )
         );
         mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(hand, result, 0));
-        if (swing) {
-            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(exactHand ? hand : Hand.MAIN_HAND));
-        }
     }
 
     public static boolean isBlockUnSolid(BlockPos pos) {

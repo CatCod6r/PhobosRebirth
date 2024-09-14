@@ -1,4 +1,4 @@
-package com.example.addon.features.modules;
+package com.example.addon.modules;
 
 import com.example.addon.Addon;
 import com.example.addon.event.events.UpdateWalkingPlayerEvent;
@@ -8,16 +8,20 @@ import com.example.addon.util.Timer;
 import com.mojang.authlib.GameProfile;
 import io.netty.util.internal.ConcurrentSet;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
+import meteordevelopment.meteorclient.events.render.Render2DEvent;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.gui.GuiThemes;
 import meteordevelopment.meteorclient.gui.themes.meteor.MeteorGuiTheme;
 import meteordevelopment.meteorclient.mixininterface.IPlayerInteractEntityC2SPacket;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
+import meteordevelopment.meteorclient.renderer.text.TextRenderer;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.systems.modules.combat.CrystalAura;
 import meteordevelopment.meteorclient.utils.misc.Keybind;
+import meteordevelopment.meteorclient.utils.render.NametagUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
@@ -40,6 +44,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
+import org.joml.Vector3d;
 
 import static com.example.addon.manager.Managers.*;
 import static com.example.addon.util.EntityUtil.getHealth;
@@ -48,7 +53,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AutoCrystalP extends Module {
+public class AutoCrystal extends Module {
     private final SettingGroup sgDev = settings.createGroup("Dev");
     private final SettingGroup sgMisc = settings.createGroup("Misc");
     private final SettingGroup sgPlace = settings.createGroup("Place");
@@ -58,7 +63,7 @@ public class AutoCrystalP extends Module {
     public static Set<BlockPos> lowDmgPos = new ConcurrentSet();
     public static Set<BlockPos> placedPos = new HashSet<>();
     public static Set<BlockPos> brokenPos = new HashSet<>();
-    private static AutoCrystalP instance;
+    private static AutoCrystal instance;
     private final Timer switchTimer = new Timer();
     private final Timer manualTimer = new Timer();
     private final Timer breakTimer = new Timer();
@@ -73,12 +78,6 @@ public class AutoCrystalP extends Module {
     private final AtomicBoolean threadOngoing = new AtomicBoolean(false);
 
     ///DEV///
-//    private final Setting<Boolean> attackOppositeHand = sgDev.add(new BoolSetting.Builder()
-//        .name("opposite-hand")
-//        .description("")
-//        .defaultValue(false)
-//        .build()
-//    );
     //TODO fix
     private final Setting<Boolean> removeAfterAttack = sgDev.add(new BoolSetting.Builder()
         .name("attack-remove")
@@ -110,40 +109,7 @@ public class AutoCrystalP extends Module {
         .visible(() -> this.place.get())
         .build()
     );
-    private final Setting<Boolean> breakSwing = sgDev.add(new BoolSetting.Builder()
-        .name("break-swing")
-        .description("Shows swing animation when breaking.")
-        .defaultValue(true)
-        .build()
-    );
-    //TODO fix
-    private final Setting<Boolean> placeSwing = sgDev.add(new BoolSetting.Builder()
-        .name("place-swing")
-        .description("Shows swing animation when placing.")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> exactHand = sgDev.add(new BoolSetting.Builder()
-        .name("exact-hand")
-        .description("Swing the exact hand that is being used.")
-        .defaultValue(false)
-        .visible(this.placeSwing::get)
-        .build()
-    );
     //TODO - glitches sometimes
-    private final Setting<Boolean> justRender = sgDev.add(new BoolSetting.Builder()
-        .name("just-render")
-        .description("Only shows renders.")
-        .defaultValue(false)
-        .build()
-    );
-    private final Setting<Boolean> fakeSwing = sgDev.add(new BoolSetting.Builder()
-        .name("fake-swing")
-        .description("")
-        .defaultValue(false)
-        .visible(this.justRender::get)
-        .build()
-    );
     private final Setting<Logic> logic = sgDev.add(new EnumSetting.Builder<Logic>()
         .name("logic")
         .description("Order of operations.")
@@ -411,8 +377,15 @@ public class AutoCrystalP extends Module {
     private final Setting<Keybind> switchBind = sgMisc.add(new KeybindSetting.Builder()
         .name("switch-bind")
         .description("")
-        .defaultValue(Keybind.none())
+        .defaultValue(Keybind. none())
         .visible(() -> this.autoSwitch.get() == AutoSwitch.TOGGLE)
+        .build()
+    );
+    //TODO - should this even be a setting ?
+    private final Setting<Boolean> offhandSwitch = sgMisc.add(new BoolSetting.Builder()
+        .name("offhand-switch")
+        .description("")
+        .defaultValue(true)
         .build()
     );
     private final Setting<Boolean> switchBack = sgMisc.add(new BoolSetting.Builder()
@@ -526,13 +499,6 @@ public class AutoCrystalP extends Module {
         .name("brown-zombie-mode")
         .description("")
         .defaultValue(false)
-        .build()
-    );
-    //TODO
-    private final Setting<Boolean> offhandSwitch = sgMisc.add(new BoolSetting.Builder()
-        .name("Offhand")
-        .description("")
-        .defaultValue(true)
         .build()
     );
     ///Place
@@ -823,6 +789,44 @@ public class AutoCrystalP extends Module {
         .build()
     );
     ///RENDER///
+    private final Setting<Boolean> justRender = sgRender.add(new BoolSetting.Builder()
+        .name("just-render")
+        .description("Only shows renders.")
+        .defaultValue(false)
+        .build()
+    );
+    private final Setting<Boolean> fakeSwing = sgRender.add(new BoolSetting.Builder()
+        .name("fake-swing")
+        .description("")
+        .defaultValue(false)
+        .visible(this.justRender::get)
+        .build()
+    );
+    private final Setting<Boolean> breakSwing = sgRender.add(new BoolSetting.Builder()
+        .name("break-swing")
+        .description("Shows swing animation when breaking.")
+        .defaultValue(true)
+        .build()
+    );
+    private final Setting<Boolean> placeSwing = sgRender.add(new BoolSetting.Builder()
+        .name("place-swing")
+        .description("Shows swing animation when placing.")
+        .defaultValue(false)
+        .build()
+    );
+    private final Setting<Boolean> exactHand = sgRender.add(new BoolSetting.Builder()
+        .name("exact-hand")
+        .description("Swing the exact hand that is being used.")
+        .defaultValue(false)
+        .visible(this.placeSwing::get)
+        .build()
+    );
+    public final Setting<CrystalAura.SwingMode> swingMode = sgRender.add(new EnumSetting.Builder<CrystalAura.SwingMode>()
+        .name("swing-mode")
+        .description("How to swing when placing.")
+        .defaultValue(CrystalAura.SwingMode.Both)
+        .build()
+    );
     // TODO : implement rest of settings
     private final Setting<Boolean> render = sgRender.add(new BoolSetting.Builder()
         .name("render")
@@ -858,13 +862,36 @@ public class AutoCrystalP extends Module {
         .visible(this.render::get)
         .build()
     );
-//    private final Setting<Boolean> text = sgRender.add(new BoolSetting.Builder()
-//        .name("text")
-//        .description("text text text")
-//        .defaultValue(false)
-//        .visible(this.render::get)
-//        .build()
-//    );
+    private final Setting<Boolean> damageText = sgRender.add(new BoolSetting.Builder()
+        .name("damage-text")
+        .description("Show crystal damage text in the overlay.")
+        .defaultValue(false)
+        .visible(this.render::get)
+        .build()
+    );
+    private final Setting<SettingColor> damageTextColor = sgRender.add(new ColorSetting.Builder()
+        .name("text-color")
+        .description("The color of the damage text.")
+        .defaultValue(new SettingColor(255, 255, 255))
+        .visible(() -> this.render.get() && damageText.get())
+        .build()
+    );
+    private final Setting<Double> damageTextScale = sgRender.add(new DoubleSetting.Builder()
+        .name("text-scale")
+        .description("How big the damage text should be.")
+        .defaultValue(1.25)
+        .min(1)
+        .sliderMax(4)
+        .visible(() -> this.render.get() && damageText.get())
+        .build()
+    );
+    // TODO
+    private final Setting<RenderMode> renderMode = sgRender.add(new EnumSetting.Builder<RenderMode>()
+        .name("render-mode")
+        .description("The mode to render in.")
+        .defaultValue(RenderMode.Normal)
+        .build()
+    );
 //    public final Setting<Double> outlineWidth = sgRender.add(new DoubleSetting.Builder()
 //        .name("outline-width")
 //        .description("Outline width.")
@@ -874,38 +901,10 @@ public class AutoCrystalP extends Module {
 //        .visible(() -> this.render.get() && this.shapeMode.get() != ShapeMode.Sides)
 //        .build()
 //    );
-//    private final Setting<Boolean> renderSwing = sgRender.add(new BoolSetting.Builder()
-//        .name("swing")
-//        .description("Renders hand swinging client-side.")
-//        .defaultValue(true)
-//        .build()
-//    );
 //    private final Setting<Boolean> renderBreak = sgRender.add(new BoolSetting.Builder()
 //        .name("break")
 //        .description("Renders a block overlay over the block the crystals are broken on.")
 //        .defaultValue(false)
-//        .build()
-//    );
-//    private final Setting<Boolean> renderDamageText = sgRender.add(new BoolSetting.Builder()
-//        .name("damage")
-//        .description("Renders crystal damage text in the block overlay.")
-//        .defaultValue(true)
-//        .build()
-//    );
-//    private final Setting<SettingColor> damageColor = sgRender.add(new ColorSetting.Builder()
-//        .name("damage-color")
-//        .description("The color of the damage text.")
-//        .defaultValue(new SettingColor(255, 255, 255))
-//        .visible(this.renderDamageText::get)
-//        .build()
-//    );
-//    private final Setting<Double> damageTextScale = sgRender.add(new DoubleSetting.Builder()
-//        .name("damage-scale")
-//        .description("How big the damage text should be.")
-//        .defaultValue(1.25)
-//        .min(1)
-//        .sliderMax(4)
-//        .visible(renderDamageText::get)
 //        .build()
 //    );
 //    private final Setting<Integer> renderTime = sgRender.add(new IntSetting.Builder()
@@ -957,14 +956,14 @@ public class AutoCrystalP extends Module {
     private PlaceInfo placeInfo;
     private boolean addTolowDmg;
 
-    public AutoCrystalP() {
-        super(Addon.CATEGORY, "AutoCrystalP", "Best CA on the market");
+    public AutoCrystal() {
+        super(Addon.CATEGORY, "AutoCrystal", "Best CA on the market");
         instance = this;
     }
 
-    public static AutoCrystalP getInstance() {
+    public static AutoCrystal getInstance() {
         if (instance == null) {
-            instance = new AutoCrystalP();
+            instance = new AutoCrystal();
         }
         return instance;
     }
@@ -1029,7 +1028,7 @@ public class AutoCrystalP extends Module {
 
     //TODO : check and rewrite again
     @EventHandler
-    public void onSend(PacketEvent.Send event) {
+    private void onSend(PacketEvent.Send event) {
         if (this.rotate.get() != Rotate.OFF && this.rotating && this.eventMode.get() != 2 && event.packet instanceof PlayerMoveC2SPacket) {
             ((PlayerMoveC2SPacketAccessor) event.packet).setYaw(this.yaw);
             ((PlayerMoveC2SPacketAccessor) event.packet).setPitch(this.pitch);
@@ -1049,7 +1048,11 @@ public class AutoCrystalP extends Module {
             }
             if (this.antiBlock.get() && EntityUtil.isCrystalAtFeet(crystal, this.range.get()) && pos != null) {
                 this.rotateToPos(pos);
-                BlockUtil.placeCrystalOnBlock(this.placePos, this.offHand ? Hand.OFF_HAND : Hand.MAIN_HAND, this.placeSwing.get(), this.exactHand.get());
+                Hand hand = this.offHand ? Hand.OFF_HAND : Hand.MAIN_HAND;
+                BlockUtil.placeCrystalOnBlock(this.placePos, hand);
+                if (this.placeSwing.get()) {
+                    decideSwing(this.exactHand.get() ? hand : Hand.MAIN_HAND);
+                }
             }
         }
     }
@@ -1149,7 +1152,7 @@ public class AutoCrystalP extends Module {
         PlayerInteractEntityC2SPacket attackPacket = PlayerInteractEntityC2SPacket.attack(mc.world.getEntityById(entityID), mc.player.isSneaking());
         mc.getNetworkHandler().sendPacket(attackPacket);
         if (this.breakSwing.get()) {
-            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
+            decideSwing(Hand.MAIN_HAND);
         }
         if (this.resetBreakTimer.get()) {
             this.breakTimer.reset();
@@ -1168,25 +1171,43 @@ public class AutoCrystalP extends Module {
     }
 
     @EventHandler
-    public void onRender(Render3DEvent event) {
+    private void onRender(Render3DEvent event) {
         List<Color> syncColors = getThemeColors();
+        //TODO : why check these ?
         if ((this.offHand || this.mainHand || this.switchMode.get() == Switch.CALC) && this.renderPos != null && this.render.get()) {
             event.renderer.box(this.renderPos, this.colorSync.get() ? syncColors.get(0) : this.sideColor.get(), this.colorSync.get() ? syncColors.get(1) : this.lineColor.get(), this.shapeMode.get(), 0);
-//            if (this.text.get()) {
-//                Render2d event ???
-//                RenderUtil.drawText(this.renderPos, (Math.floor(this.renderDamage) == this.renderDamage ? Integer.valueOf((int) this.renderDamage) : String.format("%.1f", this.renderDamage)) + "");
-//            }
         }
     }
-// TODO : some other time
+    // TODO fix - this.renderDamage
+    @EventHandler
+    public void onRender(Render2DEvent event) {
+        if (this.renderPos == null) return;
+        Vector3d vec3 = new Vector3d(this.renderPos.getX() + 0.5, this.renderPos.getY() + 0.5, this.renderPos.getZ() + 0.5);
 
-//    @SubscribeEvent
-//    public void onKeyInput(InputEvent.KeyInputEvent event) {
-//        if (Keyboard.getEventKeyState() && !(AutoCrystal.mc.currentScreen instanceof PhobosGui) && this.switchBind.getValue().getKey() == Keyboard.getEventKey()) {
-//            if (this.switchBack.getValue().booleanValue() && this.offhandSwitch.getValue().booleanValue() && this.offHand) {
-//                Offhand module = Phobos.moduleManager.getModuleByClass(Offhand.class);
-//                if (module.isOff()) {
-//                    Command.sendMessage("<" + this.getDisplayName() + "> " + "\u00a7c" + "Switch failed. Enable the Offhand module.");
+        if (this.render.get() && this.damageText.get()) {
+            if (NametagUtils.to2D(vec3, damageTextScale.get())) {
+                NametagUtils.begin(vec3);
+                TextRenderer.get().begin(1, false, true);
+
+                String text = String.format("%.1f", this.renderDamage);
+                double width = TextRenderer.get().getWidth(text) / 2;
+                TextRenderer.get().render(text, -width, 0, this.damageTextColor.get(), true);
+
+                TextRenderer.get().end();
+                NametagUtils.end();
+            }
+        }
+    }
+
+// TODO : some other time - autototem ?
+
+//    @EventHandler
+//    public void onKey(KeyEvent event) {
+//        if (!(mc.currentScreen instanceof TabScreen) && this.switchBind.get().equals(Keybind.fromKey(event.key))) {
+//            if (this.switchBack.get() && this.offhandSwitch.get() && this.offHand) {
+//                Offhand module = Modules.get().get(Offhand.class);
+//                if (!module.isActive()) {
+//                    info("\u00a7cSwitch failed. Enable the Offhand module.");
 //                } else if (module.type.getValue() == Offhand.Type.NEW) {
 //                    module.setSwapToTotem(true);
 //                    module.doOffhand();
@@ -1197,19 +1218,6 @@ public class AutoCrystalP extends Module {
 //                return;
 //            }
 //            this.switching = !this.switching;
-//        }
-//    }
-//TODO : check
-
-//    @SubscribeEvent
-//    public void onSettingChange(ClientEvent event) {
-//        if (event.getStage() == 2 && event.getSetting() != null && event.getSetting().getFeature() != null && event.getSetting().getFeature().equals(this) && this.isEnabled() && (event.getSetting().equals(this.threadDelay) || event.getSetting().equals(this.threadMode))) {
-//            if (this.executor != null) {
-//                this.executor.shutdown();
-//            }
-//            if (this.thread != null) {
-//                this.shouldInterrupt.set(true);
-//            }
 //        }
 //    }
 
@@ -1533,7 +1541,11 @@ public class AutoCrystalP extends Module {
                                 if (this.eventMode.get() == 2 && this.threadMode.get() == ThreadMode.NONE && this.rotateFirst.get() && this.rotate.get() != Rotate.OFF) {
                                     this.placeInfo = new PlaceInfo(this.placePos, this.offHand, this.placeSwing.get(), this.exactHand.get());
                                 } else {
-                                    BlockUtil.placeCrystalOnBlock(this.placePos, this.offHand ? Hand.OFF_HAND : Hand.MAIN_HAND, this.placeSwing.get(), this.exactHand.get());
+                                    Hand hand = this.offHand ? Hand.OFF_HAND : Hand.MAIN_HAND;
+                                    BlockUtil.placeCrystalOnBlock(this.placePos, hand);
+                                    if (this.placeSwing.get()) {
+                                        decideSwing(this.exactHand.get() ? hand : Hand.MAIN_HAND);
+                                    }
                                 }
                             }
                             this.lastPos = this.placePos;
@@ -1792,41 +1804,24 @@ public class AutoCrystalP extends Module {
         }
     }
 
-    //Meteor ones:
-//    private void attackCrystal(Entity entity) {
-//        // Attack
-//        mc.player.networkHandler.sendPacket(PlayerInteractEntityC2SPacket.attack(entity, mc.player.isSneaking()));
-//
-//        Hand hand = InvUtils.findInHotbar(Items.END_CRYSTAL).getHand();
-//        if (hand == null) hand = Hand.MAIN_HAND;
-////
-//        if (fakeSwing.get()) mc.player.swingHand(hand);
-//        if (renderSwing.get()) mc.player.swingHand(hand);
-//        if (placeSwing.get()) mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(hand));
-//        if (breakSwing.get()) mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(hand));
-//
-////        attacks++;
-//    }
     private void doFakeSwing() {
         if (this.fakeSwing.get()) {
-            EntityUtil.swingArmNoPacket(Hand.MAIN_HAND, mc.player);
+            mc.player.swingHand(Hand.MAIN_HAND);
         }
     }
-    //TODO: REWRITE
+
     private void manualBreaker() {
         HitResult result;
         if (this.rotate.get() != Rotate.OFF && this.eventMode.get() != 2 && this.rotating) {
             if (this.didRotation) {
-                float pitchDidRotation = mc.player.getPitch();
-                pitchDidRotation = (float) ((double) mc.player.getPitch() + 4.0E-4);
+                mc.player.setPitch((float) (mc.player.getPitch() + 4.0E04));
                 this.didRotation = false;
             } else {
-                float pitchManualBreaker = mc.player.getPitch();
-                pitchManualBreaker = (float) ((double) mc.player.getPitch() - 4.0E-4);
+                mc.player.setPitch((float) (mc.player.getPitch() - 4.0E04));
                 this.didRotation = true;
             }
         }
-        if ((this.offHand || this.mainHand) && this.manual.get() && this.manualTimer.passedMs(this.manualBreak.get()) && mc.mouse.wasRightButtonClicked() && mc.player.getOffHandStack().getItem() != Items.GOLDEN_APPLE && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.GOLDEN_APPLE && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.BOW && mc.player.getInventory().getStack(mc.player.getInventory().selectedSlot).getItem() != Items.EXPERIENCE_BOTTLE && (result = mc.crosshairTarget) != null) {
+        if ((this.offHand || this.mainHand) && this.manual.get() && this.manualTimer.passedMs(this.manualBreak.get()) && mc.mouse.wasRightButtonClicked() && mc.player.getOffHandStack().getItem() != Items.GOLDEN_APPLE && mc.player.getActiveItem().getItem() != Items.GOLDEN_APPLE && mc.player.getActiveItem().getItem() != Items.BOW && mc.player.getActiveItem().getItem() != Items.EXPERIENCE_BOTTLE && (result = mc.crosshairTarget) != null) {
             switch (result.getType()) {
                 case ENTITY: {
                     Entity entity = mc.targetedEntity;
@@ -1836,7 +1831,6 @@ public class AutoCrystalP extends Module {
                     break;
                 }
                 case BLOCK: {
-                    //maybe
                     BlockPos mousePos = new BlockPos((int) result.getPos().x, (int) result.getPos().y, (int) result.getPos().z).up();
                     for (Entity target : mc.world.getOtherEntities(null, new Box(mousePos))) {
                         if (!(target instanceof EndCrystalEntity)) continue;
@@ -1935,7 +1929,6 @@ public class AutoCrystalP extends Module {
 
     public enum ThreadMode {
         NONE,
-        POOL,
         SOUND,
         WHILE
     }
@@ -1991,7 +1984,7 @@ public class AutoCrystalP extends Module {
         None
     }
 
-    public static class PlaceInfo {
+    public class PlaceInfo {
         private final BlockPos pos;
         private final boolean offhand;
         private final boolean placeSwing;
@@ -2005,18 +1998,22 @@ public class AutoCrystalP extends Module {
         }
 
         public void runPlace() {
-            BlockUtil.placeCrystalOnBlock(this.pos, this.offhand ? Hand.OFF_HAND : Hand.MAIN_HAND, this.placeSwing, this.exactHand);
+            Hand hand = this.offhand ? Hand.OFF_HAND : Hand.MAIN_HAND;
+            BlockUtil.placeCrystalOnBlock(this.pos, hand);
+            if (this.placeSwing) {
+                decideSwing(this.exactHand ? hand : Hand.MAIN_HAND);
+            }
         }
     }
 
     private static class RAutoCrystal implements Runnable {
         private static RAutoCrystal instance;
-        private AutoCrystalP autoCrystal;
+        private AutoCrystal autoCrystal;
 
         private RAutoCrystal() {
         }
 
-        public static RAutoCrystal getInstance(AutoCrystalP autoCrystal) {
+        public static RAutoCrystal getInstance(AutoCrystal autoCrystal) {
             if (instance == null) {
                 instance = new RAutoCrystal();
                 RAutoCrystal.instance.autoCrystal = autoCrystal;
@@ -2057,9 +2054,14 @@ public class AutoCrystalP extends Module {
             }
         }
     }
-    //TODO : move into util
+
     private List<Color> getThemeColors() {
         MeteorGuiTheme theme = (MeteorGuiTheme) GuiThemes.get();
         return Arrays.asList(theme.accentColor.get(), theme.outlineColor.get());
+    }
+
+    private void decideSwing(Hand hand) {
+        if (swingMode.get().client()) mc.player.swingHand(hand);
+        if (swingMode.get().packet()) mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(hand));
     }
 }

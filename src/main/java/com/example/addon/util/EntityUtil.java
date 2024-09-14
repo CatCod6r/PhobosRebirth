@@ -7,7 +7,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.*;
@@ -158,17 +157,5 @@ public class EntityUtil implements Util {
             closest = player;
         }
         return closest;
-    }
-    //TODO : rewrite
-    public static void swingArmNoPacket(Hand hand, ClientPlayerEntity entity) {
-        final ItemStack stack = entity.getActiveItem();
-        if (!stack.isEmpty()) {
-            return;
-        }
-        if (!entity.handSwinging || entity.handSwingProgress >= entity.lastHandSwingProgress  / 2 || entity.handSwingProgress < 0) {
-            entity.handSwingProgress = -1;
-            entity.handSwinging = true;
-            entity.swingHand(hand);
-        }
     }
 }
