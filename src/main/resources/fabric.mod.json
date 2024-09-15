@@ -5,7 +5,8 @@
   "name": "Phobos 1.20.1",
   "description": "Ported phobos from 1.12.2 to 1.20.1 fabric",
   "authors": [
-    "CatC6der"
+    "CatC6der",
+    "crazymoose7"
   ],
   "contact": {
     "repo": "https://github.com/MeteorDevelopment/meteor-addon-template"
