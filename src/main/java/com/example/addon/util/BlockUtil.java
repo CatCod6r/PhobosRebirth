@@ -12,6 +12,8 @@ import net.minecraft.world.RaycastContext;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.example.addon.util.EntityUtil.isDead;
+
 public class BlockUtil
     implements Util {
     public static final List<Block> shulkerList = Arrays.asList(Blocks.WHITE_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX, Blocks.BROWN_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.BLACK_SHULKER_BOX);
@@ -57,7 +59,13 @@ public class BlockUtil
 
     public static List<BlockPos> possiblePlacePositions(double placeRange, boolean specialEntityCheck, boolean oneDot15) {
         NonNullList positions = NonNullList.create();
-        positions.addAll(getSphere(EntityUtil.getPlayerPos(mc.player), placeRange, (int) placeRange, false, true, 0).stream().filter(pos -> canPlaceCrystal(pos, specialEntityCheck, oneDot15)).collect(Collectors.toList()));
+
+        positions.addAll(getSphere(EntityUtil
+            .getPlayerPos(mc.player), placeRange, (int) placeRange, false, true, 0)
+            .stream()
+            .filter(pos -> canPlaceCrystal(pos, specialEntityCheck, oneDot15))
+            .collect(Collectors.toList()));
+
         return positions;
     }
 
@@ -75,12 +83,12 @@ public class BlockUtil
             }
             for (Entity entity : mc.world.getOtherEntities(null, new Box(boost))) {
                 //Check for dead or special and end crystal
-                if (!entity.isAlive() || specialEntityCheck && entity instanceof EndCrystalEntity) continue;
+                if (isDead(entity) || specialEntityCheck && entity instanceof EndCrystalEntity) continue;
                 return false;
             }
             if (!oneDot15) {
                 for (Entity entity : mc.world.getOtherEntities(null, new Box(boost))) {
-                    if (!entity.isAlive() || specialEntityCheck && entity instanceof EndCrystalEntity) continue;
+                    if (isDead(entity) || specialEntityCheck && entity instanceof EndCrystalEntity) continue;
                     return false;
                 }
             }

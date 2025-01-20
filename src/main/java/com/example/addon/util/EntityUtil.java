@@ -37,7 +37,8 @@ public class EntityUtil implements Util {
     }
 
     public static void attackEntity(Entity entity, boolean packet, boolean swingArm) {
-        if (packet) {
+        if (packet)
+        {
             PlayerInteractEntityC2SPacket interactPacket = PlayerInteractEntityC2SPacket.attack(entity, true);
             mc.getNetworkHandler().sendPacket(interactPacket);
         } else {
@@ -65,10 +66,17 @@ public class EntityUtil implements Util {
 
     public static List<Vec3d> getUnsafeBlocksFromVec3d(Vec3d pos, int height, boolean floor, boolean face) {
        List<Vec3d> vec3ds = new ArrayList<>();
-        for (final Vec3d vector : getOffsets(height, floor, face)) {
+        for (final Vec3d vector : getOffsets(height, floor, face))
+        {
             BlockPos targetPos = new BlockPos((int) pos.x, (int) pos.y, (int) pos.z).add((int) vector.x, (int) vector.y, (int) vector.z);
            Block block = BlockUtil.getBlock(targetPos);
-            if (block instanceof AirBlock || block instanceof FluidBlock || block instanceof TallFlowerBlock || block instanceof FireBlock || block instanceof DeadBushBlock || block instanceof SnowBlock) {
+            if (block instanceof AirBlock
+                || block instanceof FluidBlock
+                || block instanceof TallFlowerBlock
+                || block instanceof FireBlock
+                || block instanceof DeadBushBlock
+                || block instanceof SnowBlock)
+            {
                 vec3ds.add(vector);
             }
         }
@@ -95,7 +103,8 @@ public class EntityUtil implements Util {
 
     public static List<Vec3d> getOffsetList(int y, boolean floor, boolean face) {
        List<Vec3d> offsets = new ArrayList<>();
-        if (face) {
+        if (face)
+        {
             offsets.add(new Vec3d(-1.0, y, 0.0));
             offsets.add(new Vec3d(1.0, y, 0.0));
             offsets.add(new Vec3d(0.0, y, -1.0));
@@ -103,7 +112,8 @@ public class EntityUtil implements Util {
         } else {
             offsets.add(new Vec3d(-1.0, y, 0.0));
         }
-        if (floor) {
+        if (floor)
+        {
             offsets.add(new Vec3d(0.0, y - 1, 0.0));
         }
         return offsets;
@@ -136,21 +146,33 @@ public class EntityUtil implements Util {
     }
 
     public static boolean isntValid(Entity entity, double range) {
-        return entity == null || !entity.isAlive() || entity.equals(mc.player) || (entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity)) || mc.player.getBlockPos().getSquaredDistance(entity.getPos()) > MathHelper.square(range);
+        return entity == null
+            || isDead(entity)
+            || entity.equals(mc.player)
+            || (entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity))
+            || mc.player.getBlockPos().getSquaredDistance(entity.getPos()) > MathHelper.square(range);
     }
 
     public static boolean isValid(Entity entity, double range) {
         return !isntValid(entity, range);
     }
 
+    public static boolean isDead(Entity entity) {
+        return !entity.isAlive();
+    }
+
     public static PlayerEntity getClosestEnemy(double distance) {
         PlayerEntity closest = null;
-        for (final PlayerEntity player : mc.world.getPlayers()) {
-            if (isntValid(player, distance)) {
+        for (final PlayerEntity player : mc.world.getPlayers())
+        {
+            if (isntValid(player, distance))
+            {
                 continue;
             }
-            if (closest != null) {
-                if (mc.player.getBlockPos().getSquaredDistance(player.getPos()) >= mc.player.getBlockPos().getSquaredDistance(closest.getPos())) {
+            if (closest != null)
+            {
+                if (mc.player.getBlockPos().getSquaredDistance(player.getPos()) >= mc.player.getBlockPos().getSquaredDistance(closest.getPos()))
+                {
                     continue;
                 }
             }
