@@ -1018,6 +1018,7 @@ public class AutoCrystal extends Module {
     @EventHandler
     private void onSend(PacketEvent.Send event) {
         if (this.rotate.get() != Rotate.OFF && this.rotating && this.eventMode.get() != 2 && event.packet instanceof PlayerMoveC2SPacket) {
+            //TODO make normal rotate lmao
             ((PlayerMoveC2SPacketAccessor) event.packet).setYaw(this.yaw);
             ((PlayerMoveC2SPacketAccessor) event.packet).setPitch(this.pitch);
             ++this.rotationPacketsSpoofed;
@@ -1159,7 +1160,11 @@ public class AutoCrystal extends Module {
     private void onRender(Render3DEvent event) {
         List<Color> syncColors = getThemeColors();
         //TODO : why check these ?
-        if ((this.offHand || this.mainHand || this.switchMode.get() == Switch.CALC) && this.renderPos != null && this.render.get()) {
+        if ((this.offHand
+            || this.mainHand
+            || this.switchMode.get() == Switch.CALC)
+            && this.renderPos != null
+            && this.render.get()) {
             event.renderer.box(this.renderPos, this.colorSync.get() ? syncColors.get(0) : this.sideColor.get(), this.colorSync.get() ? syncColors.get(1) : this.lineColor.get(), this.shapeMode.get(), 0);
         }
     }
@@ -1254,7 +1259,13 @@ public class AutoCrystal extends Module {
     }
 
     private void handlePool(boolean justDoIt) {
-        if (justDoIt || this.executor == null || this.executor.isTerminated() || this.executor.isShutdown() || this.syncroTimer.passedMs(this.syncThreads.get()) && this.syncThreadBool.get()) {
+        if (justDoIt
+            || this.executor == null
+            || this.executor.isTerminated()
+            || this.executor.isShutdown()
+            || this.syncroTimer.passedMs(this.syncThreads.get())
+            && this.syncThreadBool.get())
+        {
             if (this.executor != null) {
                 this.executor.shutdown();
             }
@@ -1343,18 +1354,29 @@ public class AutoCrystal extends Module {
         if (this.offHand || this.mainHand) {
             this.switching = false;
         }
-        if (!((this.offHand || this.mainHand || this.switchMode.get() != Switch.BREAKSLOT || this.switching) && DamageUtil.canBreakWeakness(mc.player) && this.switchTimer.passedMs(this.switchCooldown.get()))) {
+        if (!((this.offHand || this.mainHand || this.switchMode.get() != Switch.BREAKSLOT || this.switching)
+            && DamageUtil.canBreakWeakness(mc.player)
+            && this.switchTimer.passedMs(this.switchCooldown.get())))
+        {
             this.renderPos = null;
             target = null;
             this.rotating = false;
             return false;
         }
         // TODO : check if works
-        if (this.mineSwitch.get() && mc.mouse.wasLeftButtonClicked() && (this.switching || this.autoSwitch.get() == AutoSwitch.ALWAYS) && mc.mouse.wasRightButtonClicked() && mc.player.getMainHandStack().getItem() instanceof PickaxeItem) {
+        if (this.mineSwitch.get()
+            && mc.mouse.wasLeftButtonClicked()
+            && (this.switching || this.autoSwitch.get() == AutoSwitch.ALWAYS)
+            && mc.mouse.wasRightButtonClicked()
+            && mc.player.getMainHandStack().getItem() instanceof PickaxeItem)
+        {
             this.switchItem();
         }
         this.mapCrystals();
-        if (!this.posConfirmed && this.damageSync.get() != DamageSync.NONE && this.syncTimer.passedMs(this.confirm.get())) {
+        if (!this.posConfirmed
+            && this.damageSync.get() != DamageSync.NONE
+            && this.syncTimer.passedMs(this.confirm.get()))
+        {
             this.syncTimer.setMs(this.damageSyncTime.get() + 1);
         }
         return true;
@@ -1371,8 +1393,16 @@ public class AutoCrystal extends Module {
         Entity maxCrystal = null;
         float maxDamage = 0.5f;
         for (Entity entity : mc.world.getEntities()) {
-            if (!entity.isAlive() || !(entity instanceof EndCrystalEntity) || !this.isValid(entity)) continue;
-            if (this.syncedFeetPlace.get() && entity.getBlockPos().down().equals(this.syncedCrystalPos) && this.damageSync.get() != DamageSync.NONE) {
+            if (!entity.isAlive()
+                || !(entity instanceof EndCrystalEntity)
+                || !this.isValid(entity))
+            {
+                continue;
+            }
+            if (this.syncedFeetPlace.get()
+                && entity.getBlockPos().down().equals(this.syncedCrystalPos)
+                && this.damageSync.get() != DamageSync.NONE)
+            {
                 ++this.minDmgCount;
                 ++this.crystalCount;
                 if (this.syncCount.get()) {
@@ -1397,8 +1427,15 @@ public class AutoCrystal extends Module {
                     if (!(player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathHelper.square(this.range.get())))
                         continue;
                     if (EntityUtil.isValid(player, this.range.get() + this.breakRange.get())) {
-                        if (this.antiNaked.get() && DamageUtil.isNaked(player) || !((damage = DamageUtil.calculateDamage(entity, player)) > selfDamage || damage > this.minDamage.get() && !DamageUtil.canTakeDamage(this.suicide.get())) && !(damage > getHealth(player)))
+                        if (this.antiNaked.get()
+                            && DamageUtil.isNaked(player)
+                            || !((damage = DamageUtil.calculateDamage(entity, player)) > selfDamage
+                            || damage > this.minDamage.get()
+                            && !DamageUtil.canTakeDamage(this.suicide.get()))
+                            && !(damage > getHealth(player)))
+                        {
                             continue;
+                        }
                         if (damage > maxDamage) {
                             maxDamage = damage;
                             maxCrystal = entity;
@@ -1415,8 +1452,13 @@ public class AutoCrystal extends Module {
                         this.crystalMap.put(entity, damage);
                         continue;
                     }
-                    if (this.antiFriendPop.get() != AntiFriendPop.BREAK && this.antiFriendPop.get() != AntiFriendPop.ALL || !Friends.get().isFriend(player) || !((double) (damage = DamageUtil.calculateDamage(entity, player)) > (double) getHealth(player) + 0.5))
+                    if (this.antiFriendPop.get() != AntiFriendPop.BREAK
+                        && this.antiFriendPop.get() != AntiFriendPop.ALL
+                        || !Friends.get().isFriend(player)
+                        || !((double) (damage = DamageUtil.calculateDamage(entity, player)) > (double) getHealth(player) + 0.5))
+                    {
                         continue;
+                    }
                     maxCrystal = beforeCrystal;
                     maxDamage = beforeDamage;
                     this.crystalMap.remove(entity);
@@ -1431,10 +1473,18 @@ public class AutoCrystal extends Module {
             if (!count) continue;
             ++this.crystalCount;
         }
-        if (this.damageSync.get() == DamageSync.BREAK && ((double) maxDamage > this.lastDamage || this.syncTimer.passedMs(this.damageSyncTime.get()) || this.damageSync.get() == DamageSync.NONE)) {
+        if (this.damageSync.get() == DamageSync.BREAK
+            && ((double) maxDamage > this.lastDamage
+            || this.syncTimer.passedMs(this.damageSyncTime.get())
+            || this.damageSync.get() == DamageSync.NONE))
+        {
             this.lastDamage = maxDamage;
         }
-        if (this.enormousSync.get() && this.syncedFeetPlace.get() && this.damageSync.get() != DamageSync.NONE && this.syncedCrystalPos != null) {
+        if (this.enormousSync.get()
+            && this.syncedFeetPlace.get()
+            && this.damageSync.get() != DamageSync.NONE
+            && this.syncedCrystalPos != null)
+        {
             if (this.syncCount.get()) {
                 this.minDmgCount = this.wasteAmount.get() + 1;
                 this.crystalCount = this.wasteAmount.get() + 1;
@@ -1455,7 +1505,14 @@ public class AutoCrystal extends Module {
                 }
             }
         }
-        if (this.shouldSlowBreak(true) && maxDamage < this.minDamage.get() && (target == null || !(getHealth(target) <= this.facePlace.get()) || !this.breakTimer.passedMs(this.facePlaceSpeed.get()) && this.slowFaceBreak.get() && mc.mouse.wasLeftButtonClicked() && this.holdFacePlace.get() && this.holdFaceBreak.get())) {
+        if (this.shouldSlowBreak(true)
+            && maxDamage < this.minDamage.get()
+            && (target == null || !(getHealth(target) <= this.facePlace.get())
+            || !this.breakTimer.passedMs(this.facePlaceSpeed.get()) && this.slowFaceBreak.get()
+            && mc.mouse.wasLeftButtonClicked()
+            && this.holdFacePlace.get()
+            && this.holdFaceBreak.get()))
+        {
             this.efficientTarget = null;
             return;
         }
@@ -1477,27 +1534,73 @@ public class AutoCrystal extends Module {
 
     //TODO : check
     private boolean shouldSlowBreak(boolean withManual) {
-        return withManual && this.manual.get() && this.manualMinDmg.get() && mc.mouse.wasRightButtonClicked() && (!mc.mouse.wasLeftButtonClicked() || !this.holdFacePlace.get()) || this.holdFacePlace.get() && this.holdFaceBreak.get() && mc.mouse.wasLeftButtonClicked() && !this.breakTimer.passedMs(this.facePlaceSpeed.get()) || this.slowFaceBreak.get() && !this.breakTimer.passedMs(this.facePlaceSpeed.get());
+        return withManual
+            && this.manual.get()
+            && this.manualMinDmg.get()
+            && mc.mouse.wasRightButtonClicked()
+            && (!mc.mouse.wasLeftButtonClicked()
+            || !this.holdFacePlace.get())
+            || this.holdFacePlace.get()
+            && this.holdFaceBreak.get()
+            && mc.mouse.wasLeftButtonClicked()
+            && !this.breakTimer.passedMs(this.facePlaceSpeed.get()) || this.slowFaceBreak.get()
+            && !this.breakTimer.passedMs(this.facePlaceSpeed.get());
     }
 
     private void placeCrystal() {
         int crystalLimit = this.wasteAmount.get();
-        if (this.placeTimer.passedMs(this.placeDelay.get()) && this.place.get() && (this.offHand || this.mainHand || this.switchMode.get() == Switch.CALC || this.switchMode.get() == Switch.BREAKSLOT && this.switching)) {
-            if (!(!this.offHand && !this.mainHand && (this.switchMode.get() == Switch.ALWAYS || this.switching) || this.crystalCount < crystalLimit || this.antiSurround.get() && this.lastPos != null && this.lastPos.equals(this.placePos))) {
+        if (this.placeTimer.passedMs(this.placeDelay.get())
+            && this.place.get()
+            && (this.offHand || this.mainHand || this.switchMode.get() == Switch.CALC
+            || this.switchMode.get() == Switch.BREAKSLOT
+            && this.switching))
+        {
+            if (!(!this.offHand
+                && !this.mainHand
+                && (this.switchMode.get() == Switch.ALWAYS
+                || this.switching)
+                || this.crystalCount < crystalLimit
+                || this.antiSurround.get()
+                && this.lastPos != null
+                && this.lastPos.equals(this.placePos)))
+            {
                 return;
             }
             this.calculateDamage(this.getTarget(this.targetMode.get() == Target.UNSAFE));
             if (target != null && this.placePos != null) {
-                if (!this.offHand && !this.mainHand && this.autoSwitch.get() != AutoSwitch.NONE && (this.currentDamage > this.minDamage.get() || this.lethalSwitch.get() && getHealth(target) <= this.facePlace.get()) && !this.switchItem()) {
+                if (!this.offHand
+                    && !this.mainHand
+                    && this.autoSwitch.get() != AutoSwitch.NONE
+                    && (this.currentDamage > this.minDamage.get() || this.lethalSwitch.get()
+                    && getHealth(target) <= this.facePlace.get())
+                    && !this.switchItem())
+                {
                     return;
                 }
                 if (this.currentDamage < this.minDamage.get() && this.limitFacePlace.get()) {
                     crystalLimit = 1;
                 }
-                if (this.currentDamage >= this.minMinDmg.get() && (this.offHand || this.mainHand || this.autoSwitch.get() != AutoSwitch.NONE) && (this.crystalCount < crystalLimit || this.antiSurround.get() && this.lastPos != null && this.lastPos.equals(this.placePos)) && (this.currentDamage > this.minDamage.get() || this.minDmgCount < crystalLimit) && this.currentDamage >= 1.0 && (DamageUtil.isArmorLow(target, this.minArmor.get()) || getHealth(target) <= this.facePlace.get() || this.currentDamage > this.minDamage.get() || this.shouldHoldFacePlace())) {
+                if (this.currentDamage >= this.minMinDmg.get()
+                    && (this.offHand
+                    || this.mainHand
+                    || this.autoSwitch.get() != AutoSwitch.NONE)
+                    && (this.crystalCount < crystalLimit || this.antiSurround.get()
+                    && this.lastPos != null && this.lastPos.equals(this.placePos))
+                    && (this.currentDamage > this.minDamage.get() || this.minDmgCount < crystalLimit)
+                    && this.currentDamage >= 1.0
+                    && (DamageUtil.isArmorLow(target, this.minArmor.get()) || getHealth(target) <= this.facePlace.get()
+                    || this.currentDamage > this.minDamage.get() || this.shouldHoldFacePlace()))
+                {
                     double damageOffset = this.damageSync.get() == DamageSync.BREAK ? this.dropOff.get() - 5.0f : 0.0f;
                     boolean syncflag = false;
-                    if (this.syncedFeetPlace.get() && this.placePos.equals(this.lastPos) && this.isEligibleForFeetSync(target, this.placePos) && !this.syncTimer.passedMs(this.damageSyncTime.get()) && target.equals(this.currentSyncTarget) && target.getBlockPos().equals(this.syncedPlayerPos) && this.damageSync.get() != DamageSync.NONE) {
+                    if (this.syncedFeetPlace.get()
+                        && this.placePos.equals(this.lastPos)
+                        && this.isEligibleForFeetSync(target, this.placePos)
+                        && !this.syncTimer.passedMs(this.damageSyncTime.get())
+                        && target.equals(this.currentSyncTarget)
+                        && target.getBlockPos().equals(this.syncedPlayerPos)
+                        && this.damageSync.get() != DamageSync.NONE)
+                    {
                         this.syncedCrystalPos = this.placePos;
                         this.lastDamage = this.currentDamage;
                         if (this.fullSync.get()) {
@@ -1505,25 +1608,36 @@ public class AutoCrystal extends Module {
                         }
                         syncflag = true;
                     }
-                    if (syncflag || this.currentDamage - damageOffset > this.lastDamage || this.syncTimer.passedMs(this.damageSyncTime.get()) || this.damageSync.get() == DamageSync.NONE) {
-                        if (!syncflag && this.damageSync.get() != DamageSync.BREAK) {
+                    if (syncflag
+                        || this.currentDamage - damageOffset > this.lastDamage
+                        || this.syncTimer.passedMs(this.damageSyncTime.get())
+                        || this.damageSync.get() == DamageSync.NONE)
+                    {
+                        if (!syncflag && this.damageSync.get() != DamageSync.BREAK)
+                        {
                             this.lastDamage = this.currentDamage;
                         }
                         this.renderPos = this.placePos;
                         this.renderDamage = this.currentDamage;
-                        if (this.switchItem()) {
+                        if (this.switchItem())
+                        {
                             this.currentSyncTarget = target;
                             this.syncedPlayerPos = target.getBlockPos();
                             if (this.foundDoublePop) {
                                 this.totemPops.put(target, new Timer().reset());
                             }
                             this.rotateToPos(this.placePos);
-                            if (this.addTolowDmg || this.actualSlowBreak.get() && this.currentDamage < this.minDamage.get()) {
+                            if (this.addTolowDmg || this.actualSlowBreak.get()
+                                && this.currentDamage < this.minDamage.get()) {
                                 lowDmgPos.add(this.placePos);
                             }
                             placedPos.add(this.placePos);
                             if (!this.justRender.get()) {
-                                if (this.eventMode.get() == 2 && this.threadMode.get() == ThreadMode.NONE && this.rotateFirst.get() && this.rotate.get() != Rotate.OFF) {
+                                if (this.eventMode.get() == 2
+                                    && this.threadMode.get() == ThreadMode.NONE
+                                    && this.rotateFirst.get()
+                                    && this.rotate.get() != Rotate.OFF)
+                                {
                                     this.placeInfo = new PlaceInfo(this.placePos, this.offHand, this.placeSwing.get(), this.exactHand.get());
                                 } else {
                                     Hand hand = this.offHand ? Hand.OFF_HAND : Hand.MAIN_HAND;
@@ -1630,19 +1744,36 @@ public class AutoCrystal extends Module {
         block0:
         //this.antiSurround - VERY IMPORTANT - special entity check ?? TODO - 1.15
         for (BlockPos pos : BlockUtil.possiblePlacePositions(this.placeRange.get(), this.antiSurround.get(), this.oneDot15.get())) {
-            if (!BlockUtil.rayTracePlaceCheck(pos, (this.raytrace.get() == Raytrace.PLACE || this.raytrace.get() == Raytrace.FULL) && mc.player.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.placetrace.get()), 1.0f)) {continue;}
+            if (!BlockUtil.rayTracePlaceCheck(pos,
+                (this.raytrace.get() == Raytrace.PLACE || this.raytrace.get() == Raytrace.FULL)
+                    && mc.player.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.placetrace.get()), 1.0f))
+            {
+                continue;
+            }
             float selfDamage = -1.0f;
             if (DamageUtil.canTakeDamage(this.suicide.get())) {
                 selfDamage = DamageUtil.calculateDamage(pos, mc.player);
             }
-            if (!(selfDamage + 0.5 < getHealth(mc.player)) || !(selfDamage <= this.maxSelfPlace.get())) {continue;}
-            if (targetedPlayer != null) {
+            if (!(selfDamage + 0.5 < getHealth(mc.player))
+                || !(selfDamage <= this.maxSelfPlace.get()))
+            {
+                continue;
+            }
+            if (targetedPlayer != null)
+            {
                 float playerDamage = DamageUtil.calculateDamage(pos, targetedPlayer);
-                if (this.calcEvenIfNoDamage.get() && (this.antiFriendPop.get() == AntiFriendPop.ALL || this.antiFriendPop.get() == AntiFriendPop.PLACE)) {
+                if (this.calcEvenIfNoDamage.get()
+                    && (this.antiFriendPop.get() == AntiFriendPop.ALL
+                    || this.antiFriendPop.get() == AntiFriendPop.PLACE))
+                {
                     boolean friendPop = false;
                     for (PlayerEntity friend : mc.world.getPlayers()) {
                         float friendDamage;
-                        if (friend == null || mc.player.equals(friend) || friend.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.range.get() + this.placeRange.get()) || !Friends.get().isFriend(friend) || !((double) (friendDamage = DamageUtil.calculateDamage(pos, friend)) > (double) getHealth(friend) + 0.5)) {
+                        if (friend == null || mc.player.equals(friend)
+                            || friend.getBlockPos().getSquaredDistance(pos) > MathHelper.square(this.range.get() + this.placeRange.get())
+                            || !Friends.get().isFriend(friend)
+                            || !((double) (friendDamage = DamageUtil.calculateDamage(pos, friend)) > (double) getHealth(friend) + 0.5))
+                        {
                             continue;
                         }
                         friendPop = true;
@@ -1650,14 +1781,22 @@ public class AutoCrystal extends Module {
                     }
                     if (friendPop) continue;
                 }
-                if (this.isDoublePoppable(targetedPlayer, playerDamage) && (currentPos == null || targetedPlayer.getBlockPos().getSquaredDistance(pos) < targetedPlayer.getBlockPos().getSquaredDistance(currentPos))) {
+                if (this.isDoublePoppable(targetedPlayer, playerDamage)
+                    && (currentPos == null || targetedPlayer.getBlockPos().getSquaredDistance(pos) < targetedPlayer.getBlockPos().getSquaredDistance(currentPos)))
+                {
                     currentTarget = targetedPlayer;
                     maxDamage = playerDamage;
                     currentPos = pos;
                     this.foundDoublePop = true;
                     continue;
                 }
-                if (this.foundDoublePop || !(playerDamage > maxDamage) && (!this.extraSelfCalc.get() || !(playerDamage >= maxDamage) || !(selfDamage < maxSelfDamage)) || !(playerDamage > selfDamage || playerDamage > this.minDamage.get() && !DamageUtil.canTakeDamage(this.suicide.get())) && !(playerDamage > getHealth(targetedPlayer))) {
+                if (this.foundDoublePop || !(playerDamage > maxDamage)
+                    && (!this.extraSelfCalc.get() || !(playerDamage >= maxDamage)
+                    || !(selfDamage < maxSelfDamage))
+                    || !(playerDamage > selfDamage || playerDamage > this.minDamage.get()
+                    && !DamageUtil.canTakeDamage(this.suicide.get()))
+                    && !(playerDamage > getHealth(targetedPlayer)))
+                {
                     continue;
                 }
                 maxDamage = playerDamage;
@@ -1675,26 +1814,46 @@ public class AutoCrystal extends Module {
                 if (EntityUtil.isValid(player, this.placeRange.get() + this.range.get())) {
                     if (this.antiNaked.get() && DamageUtil.isNaked(player)) continue;
                     float playerDamage = DamageUtil.calculateDamage(pos, player);
-                    if (this.doublePopOnDamage.get() && this.isDoublePoppable(player, playerDamage) && (currentPos == null || player.getBlockPos().getSquaredDistance(pos) < player.getBlockPos().getSquaredDistance(currentPos))) {
+                    if (this.doublePopOnDamage.get()
+                        && this.isDoublePoppable(player, playerDamage)
+                        && (currentPos == null || player.getBlockPos().getSquaredDistance(pos) < player.getBlockPos().getSquaredDistance(currentPos)))
+                    {
                         currentTarget = player;
                         maxDamage = playerDamage;
                         currentPos = pos;
                         maxSelfDamage = selfDamage;
                         this.foundDoublePop = true;
                         if (this.antiFriendPop.get() != AntiFriendPop.BREAK && this.antiFriendPop.get() != AntiFriendPop.PLACE)
+                        {
                             continue;
+                        }
                         continue block0;
                     }
-                    if (this.foundDoublePop || !(playerDamage > maxDamage) && (!this.extraSelfCalc.get() || !(playerDamage >= maxDamage) || !(selfDamage < maxSelfDamage)) || !(playerDamage > selfDamage || playerDamage > this.minDamage.get() && !DamageUtil.canTakeDamage(this.suicide.get())) && !(playerDamage > getHealth(player)))
+                    if (this.foundDoublePop || !(playerDamage > maxDamage)
+                        && (!this.extraSelfCalc.get() || !(playerDamage >= maxDamage)
+                        || !(selfDamage < maxSelfDamage)) || !(playerDamage > selfDamage
+                        || playerDamage > this.minDamage.get()
+                        && !DamageUtil.canTakeDamage(this.suicide.get()))
+                        && !(playerDamage > getHealth(player)))
+                    {
                         continue;
+                    }
                     maxDamage = playerDamage;
                     currentTarget = player;
                     currentPos = pos;
                     maxSelfDamage = selfDamage;
                     continue;
                 }
-                if (this.antiFriendPop.get() != AntiFriendPop.ALL && this.antiFriendPop.get() != AntiFriendPop.PLACE || player == null || !(player.getBlockPos().getSquaredDistance(pos) <= MathHelper.square(this.range.get() + this.placeRange.get())) || !Friends.get().isFriend(player) || !((double) (friendDamage = DamageUtil.calculateDamage(pos, player)) > (double) getHealth(player) + 0.5))
+                if (this.antiFriendPop.get() != AntiFriendPop.ALL
+                    && this.antiFriendPop.get() != AntiFriendPop.PLACE
+                    || player == null
+                    || !(player.getBlockPos().getSquaredDistance(pos) <= MathHelper.square(this.range.get() + this.placeRange.get()))
+                    || !Friends.get().isFriend(player)
+                    || !((double) (friendDamage = DamageUtil.calculateDamage(pos, player)) > (double) getHealth(player) + 0.5))
+                {
                     continue;
+                }
+
                 maxDamage = maxDamageBefore;
                 currentTarget = currentTargetBefore;
                 currentPos = currentPosBefore;
