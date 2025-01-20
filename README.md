@@ -1,8 +1,5 @@
-# Meteor Addon Template
+# PhobosRebirth
+This project is my attemps to revive phobos client back to life(or at least combat modules) in the form of meteor client addon.
 
-A template to allow easy usage of the Meteor Addon API.
-
-### How to use:  
-- Clone this project
-- Use this template to create new modules/commands
-- Run the mod with Meteor.
+# Modules
+- AutoCrystal(currently has some issues with placement and raytrace)
