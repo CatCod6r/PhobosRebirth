@@ -19,31 +19,44 @@ public class SafetyManager implements Runnable, Util {
     @Override
     public void run() {
         Modules modules = Modules.get();
-        if (modules.get(AutoCrystal.class).isActive() || AutoCrystal.getInstance().threadMode.get() == AutoCrystal.ThreadMode.NONE) {
+        if (modules.get(AutoCrystal.class).isActive()
+            || AutoCrystal.getInstance().threadMode.get() == AutoCrystal.ThreadMode.NONE)
+        {
             this.doSafetyCheck();
         }
     }
 
     public void doSafetyCheck() {
-        if (!(mc.player == null || mc.world == null)) {
+        if (!Util.fullCheck()) {
             PlayerEntity closest;
             boolean safe = true;
             PlayerEntity entityPlayer = closest = autoCrystal.safety.get() ? EntityUtil.getClosestEnemy(18.0) : null;
-            if (autoCrystal.safety.get() && closest == null) {
+            if (autoCrystal.safety.get()
+                && closest == null)
+            {
                 this.SAFE.set(true);
                 return;
             }
             ArrayList<Entity> crystals = new ArrayList<>((Collection) mc.world.getEntities());
-            for (Entity crystal : crystals) {
-                if (!(crystal instanceof EndCrystalEntity) || !((double) DamageUtil.calculateDamage(crystal, mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(crystal.getPos()) < 40.0))
+            for (Entity crystal : crystals)
+            {
+                if (!(crystal instanceof EndCrystalEntity)
+                    || !((double) DamageUtil.calculateDamage(crystal, mc.player) > 4.0)
+                    || closest != null && !(closest.getBlockPos().getSquaredDistance(crystal.getPos()) < 40.0))
+                {
                     continue;
+                }
                 safe = false;
                 break;
             }
             if (safe) {
                 for (BlockPos pos : BlockUtil.possiblePlacePositions(4.0f, false, autoCrystal.oneDot15.get())) {
-                    if (!((double) DamageUtil.calculateDamage(pos, mc.player) > 4.0) || closest != null && !(closest.getBlockPos().getSquaredDistance(pos) < 40.0))
+                    if (!((double) DamageUtil.calculateDamage(pos, mc.player) > 4.0)
+                        || closest != null
+                        && !(closest.getBlockPos().getSquaredDistance(pos) < 40.0))
+                    {
                         continue;
+                    }
                     safe = false;
                     break;
                 }

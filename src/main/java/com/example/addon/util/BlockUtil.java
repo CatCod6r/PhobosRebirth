@@ -16,16 +16,33 @@ import static com.example.addon.util.EntityUtil.isDead;
 
 public class BlockUtil
     implements Util {
-    public static final List<Block> shulkerList = Arrays.asList(Blocks.WHITE_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX, Blocks.BROWN_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.BLACK_SHULKER_BOX);
-    public static List<Block> unSolidBlocks = Arrays.asList(Blocks.LAVA_CAULDRON , Blocks.FLOWER_POT, Blocks.SNOW, Blocks.YELLOW_CARPET
+    public static final List<Block> shulkerList = Arrays.asList(Blocks.WHITE_SHULKER_BOX,
+        Blocks.ORANGE_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX,
+        Blocks.YELLOW_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX,
+        Blocks.SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX,
+        Blocks.BROWN_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.BLACK_SHULKER_BOX);
+
+    public static List<Block> unSolidBlocks = Arrays.asList(
+        Blocks.LAVA_CAULDRON , Blocks.FLOWER_POT, Blocks.SNOW, Blocks.YELLOW_CARPET
+
         //needs to get all of carpets
         , Blocks.END_ROD, Blocks.SKELETON_SKULL,
+
         //needs to be all skulls
         Blocks.FLOWER_POT, Blocks.TRIPWIRE, Blocks.TRIPWIRE_HOOK, Blocks.OAK_BUTTON,
+
         //needs to be all buttons
-        Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.LADDER, Blocks.COMPARATOR,Blocks.REPEATER, Blocks.REDSTONE_TORCH, Blocks.REDSTONE_WIRE, Blocks.AIR, Blocks.NETHER_PORTAL, Blocks.END_PORTAL, Blocks.WATER, Blocks.WATER_CAULDRON, Blocks.LAVA, Blocks.LAVA_CAULDRON, Blocks.ACACIA_SAPLING
+        Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.LADDER, Blocks.COMPARATOR,Blocks.REPEATER, Blocks.REDSTONE_TORCH,
+        Blocks.REDSTONE_WIRE, Blocks.AIR, Blocks.NETHER_PORTAL, Blocks.END_PORTAL, Blocks.WATER, Blocks.WATER_CAULDRON,
+        Blocks.LAVA, Blocks.LAVA_CAULDRON, Blocks.ACACIA_SAPLING
+
         //needs to be all saplings
-        , Blocks.SUNFLOWER, Blocks.FLOWERING_AZALEA, Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM, Blocks.WHEAT, Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS, Blocks.PUMPKIN_STEM, Blocks.MELON_STEM, Blocks.LILY_PAD, Blocks.NETHER_WART, Blocks.COCOA, Blocks.CHORUS_FLOWER, Blocks.CHORUS_PLANT, Blocks.GRASS_BLOCK, Blocks.DEAD_BUSH, Blocks.VINE, Blocks.FIRE, Blocks.RAIL, Blocks.ACTIVATOR_RAIL, Blocks.DETECTOR_RAIL, Blocks.POWERED_RAIL, Blocks.TORCH);
+        , Blocks.SUNFLOWER, Blocks.FLOWERING_AZALEA, Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM, Blocks.WHEAT,
+        Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS, Blocks.PUMPKIN_STEM, Blocks.MELON_STEM, Blocks.LILY_PAD,
+        Blocks.NETHER_WART, Blocks.COCOA, Blocks.CHORUS_FLOWER, Blocks.CHORUS_PLANT, Blocks.GRASS_BLOCK,
+        Blocks.DEAD_BUSH, Blocks.VINE, Blocks.FIRE, Blocks.RAIL, Blocks.ACTIVATOR_RAIL, Blocks.DETECTOR_RAIL,
+        Blocks.POWERED_RAIL, Blocks.TORCH);
+
         //TODO : All new updates block also
 
     public static List<BlockPos> getSphere(BlockPos pos, double placeRange, int placeRange2, boolean hollow, boolean sphere, int plus_y) {
@@ -35,9 +52,11 @@ public class BlockUtil
         int currZ = pos.getZ();
         int x = currX - (int) placeRange;
 
-        while ((float) x <= (float) currX + placeRange) {
+        while ((float) x <= (float) currX + placeRange)
+        {
             int z = currZ - (int) placeRange;
-            while ((float) z <= (float) currZ + placeRange) {
+            while ((float) z <= (float) currZ + placeRange)
+            {
                 int y = sphere ? currY - (int) placeRange : currY;
                 while (true) {
                     float f = y;
@@ -131,6 +150,7 @@ public class BlockUtil
     public static boolean rayTracePlaceCheck(BlockPos pos, boolean shouldCheck, float height) {
         Vec3d start = new Vec3d(mc.player.getX(), mc.player.getY() + mc.player.getEyeHeight(mc.player.getPose()), mc.player.getZ());
         Vec3d end = new Vec3d(pos.getX(), (float) pos.getY() + height, pos.getZ());
-        return !shouldCheck || mc.world.raycast(new RaycastContext(start, end, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, mc.player)) == null;
+        return !shouldCheck
+            || mc.world.raycast(new RaycastContext(start, end, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, mc.player)) == null;
     }
 }

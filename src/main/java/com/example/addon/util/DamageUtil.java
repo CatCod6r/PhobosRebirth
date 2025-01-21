@@ -17,11 +17,16 @@ import net.minecraft.world.explosion.Explosion;
 public class DamageUtil
     implements Util {
     public static boolean isArmorLow(PlayerEntity player, int durability) {
-        for (ItemStack piece : player.getInventory().armor) {
-            if (piece == null) {
+        for (ItemStack piece : player.getInventory().armor)
+        {
+            if (piece == null)
+            {
                 return true;
             }
-            if (DamageUtil.getItemDamage(piece) >= durability) continue;
+            if (DamageUtil.getItemDamage(piece) >= durability)
+            {
+                continue;
+            }
             return true;
         }
         return false;
@@ -29,7 +34,10 @@ public class DamageUtil
 
     public static boolean isNaked(PlayerEntity player) {
         for (ItemStack piece : player.getInventory().armor) {
-            if (piece == null || piece.isEmpty()) continue;
+            if (piece == null || piece.isEmpty())
+            {
+                continue;
+            }
             return false;
         }
         return true;
@@ -49,12 +57,12 @@ public class DamageUtil
         ItemStack mainHandStack = player.getMainHandStack();
         Item mainHandItem = mainHandStack.getItem();
 
-        return !player.hasStatusEffect(StatusEffects.WEAKNESS) ||
-            strengthAmp >= 1 ||
-            mainHandItem instanceof SwordItem ||
-            mainHandItem instanceof PickaxeItem ||
-            mainHandItem instanceof AxeItem ||
-            mainHandItem instanceof ShovelItem;
+        return !player.hasStatusEffect(StatusEffects.WEAKNESS)
+            || strengthAmp >= 1
+            || mainHandItem instanceof SwordItem
+            || mainHandItem instanceof PickaxeItem
+            || mainHandItem instanceof AxeItem
+            || mainHandItem instanceof ShovelItem;
     }
     //maybe
     public static float calculateDamage(double posX, double posY, double posZ, Entity entity) {
@@ -70,13 +78,16 @@ public class DamageUtil
         float damage = (int) ((v * v + v) / 2.0 * 7.0 * (double) doubleExplosionSize + 1.0);
         double finald = 1.0;
         if (entity instanceof LivingEntity) {
-            finald = getBlastReduction((LivingEntity) entity, getDamageMultiplied(damage), new Explosion(mc.world, null, posX, posY, posZ, 6.0f, false, Explosion.DestructionType.DESTROY));
+            finald = getBlastReduction((LivingEntity) entity,
+                getDamageMultiplied(damage),
+                new Explosion(mc.world, null, posX, posY, posZ, 6.0f, false, Explosion.DestructionType.DESTROY));
         }
         return (float) finald;
     }
 
     public static float getBlastReduction(LivingEntity entity, float damage, Explosion explosion) {
-        if (entity instanceof PlayerEntity player) {
+        if (entity instanceof PlayerEntity player)
+        {
             DamageSource damageSource = (explosion).getDamageSource();
             damage = CombatRules.getDamageAfterAbsorb(damage, (float) player.getArmor(), (float) player.getAttributeValue(EntityAttributes.GENERIC_ARMOR_TOUGHNESS));
             int enchantmentModifier;
@@ -88,7 +99,8 @@ public class DamageUtil
             float protection = MathHelper.clamp((float) enchantmentModifier, 0.0f, 20.0f);
             damage *= 1.0f - protection / 25.0f;
 
-            if (player.hasStatusEffect(StatusEffects.RESISTANCE)) {
+            if (player.hasStatusEffect(StatusEffects.RESISTANCE))
+            {
                 damage -= damage / 4.0f;
             }
 

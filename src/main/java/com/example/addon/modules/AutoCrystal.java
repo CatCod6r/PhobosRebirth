@@ -54,6 +54,7 @@ import org.joml.Vector3d;
 import static com.example.addon.manager.Managers.*;
 import static com.example.addon.util.EntityUtil.getHealth;
 import static com.example.addon.util.EntityUtil.isDead;
+import static com.example.addon.util.Util.fullCheck;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -1038,7 +1039,8 @@ public class AutoCrystal extends Module {
         {
             EndCrystalEntity crystal = (EndCrystalEntity) packet.getEntity();
             BlockPos pos = packet.getEntity().getBlockPos();
-            if (this.removeAfterAttack.get()) {
+            if (this.removeAfterAttack.get())
+            {
                 mc.world.removeEntity(packet.getEntity().getId(), Entity.RemovalReason.KILLED);
             }
             if (this.antiBlock.get()
@@ -1057,7 +1059,7 @@ public class AutoCrystal extends Module {
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onEntityAdded(EntityAddedEvent event) {
-        if (mc.player == null || mc.world == null) return;
+        if (fullCheck()) return;
         if (!this.justRender.get()
             && this.switchTimer.passedMs(this.switchCooldown.get())
             && this.explode.get()
@@ -1143,7 +1145,7 @@ public class AutoCrystal extends Module {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPacketReceive(PacketEvent.Receive event) {
-        if (mc.player == null || mc.world == null) return;
+        if (fullCheck()) return;
         if (!this.soundConfirm.get()
             && event.packet instanceof ExplosionS2CPacket packet)
         {
@@ -1422,9 +1424,10 @@ public class AutoCrystal extends Module {
     }
 
     private boolean check() {
-        if (mc.player == null || mc.world == null) {return false;}
+        if (fullCheck()) return false;
 
-        if (this.syncTimer.passedMs(this.damageSyncTime.get())) {
+        if (this.syncTimer.passedMs(this.damageSyncTime.get()))
+        {
             this.currentSyncTarget = null;
             this.syncedCrystalPos = null;
             this.syncedPlayerPos = null;
@@ -1454,7 +1457,9 @@ public class AutoCrystal extends Module {
             this.placeInfo = null;
             this.packetUseEntities.clear();
         }
-        if (this.offHand || this.mainHand) {
+        if (this.offHand
+            || this.mainHand)
+        {
             this.switching = false;
         }
         if (!((this.offHand
@@ -1499,7 +1504,8 @@ public class AutoCrystal extends Module {
         this.minDmgCount = 0;
         Entity maxCrystal = null;
         float maxDamage = 0.5f;
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.world.getEntities())
+        {
             if (isDead(entity)
                 || !(entity instanceof EndCrystalEntity)
                 || !this.isValid(entity))
@@ -1532,7 +1538,8 @@ public class AutoCrystal extends Module {
             {
                 Entity beforeCrystal = maxCrystal;
                 float beforeDamage = maxDamage;
-                for (PlayerEntity player : mc.world.getPlayers()) {
+                for (PlayerEntity player : mc.world.getPlayers())
+                {
                     float damage;
                     if (!(player.getBlockPos().getSquaredDistance(entity.getPos()) <= MathHelper.square(this.range.get())))
                     {
@@ -1549,11 +1556,13 @@ public class AutoCrystal extends Module {
                         {
                             continue;
                         }
-                        if (damage > maxDamage) {
+                        if (damage > maxDamage)
+                        {
                             maxDamage = damage;
                             maxCrystal = entity;
                         }
-                        if (this.packets.get() == 1) {
+                        if (this.packets.get() == 1)
+                        {
                             if (damage >= this.minDamage.get()
                                 || !this.wasteMinDmgCount.get())
                             {
@@ -1563,7 +1572,8 @@ public class AutoCrystal extends Module {
                             continue;
                         }
                         if (this.crystalMap.get(entity) != null
-                            && !(this.crystalMap.get(entity) < damage)){
+                            && !(this.crystalMap.get(entity) < damage))
+                        {
                             continue;
                         }
                         this.crystalMap.put(entity, damage);
@@ -1608,8 +1618,10 @@ public class AutoCrystal extends Module {
             }
             return;
         }
-        if (this.webAttack.get() && this.webPos != null) {
-            if (mc.player.getBlockPos().getSquaredDistance(this.webPos.up()) > MathHelper.square(this.breakRange.get())) {
+        if (this.webAttack.get() && this.webPos != null)
+        {
+            if (mc.player.getBlockPos().getSquaredDistance(this.webPos.up()) > MathHelper.square(this.breakRange.get()))
+            {
                 this.webPos = null;
             } else {
                 for (Entity entity : mc.world.getOtherEntities(null, new Box(this.webPos.up()))) {
@@ -1640,7 +1652,9 @@ public class AutoCrystal extends Module {
             for (Map.Entry entry : this.crystalMap.entrySet()) {
                 Entity crystal = (Entity) entry.getKey();
                 float damage = ((Float) entry.getValue());
-                if (damage >= this.minDamage.get() || !this.wasteMinDmgCount.get()) {
+                if (damage >= this.minDamage.get()
+                    || !this.wasteMinDmgCount.get())
+                {
                     ++this.crystalCount;
                 }
                 this.attackList.add(crystal);

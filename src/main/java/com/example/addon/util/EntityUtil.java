@@ -25,15 +25,57 @@ public class EntityUtil implements Util {
     public static final Vec3d[] antiScaffoldOffsetList;
 
     static {
-        antiDropOffsetList = new Vec3d[]{new Vec3d(0.0, -2.0, 0.0)};
-        platformOffsetList = new Vec3d[]{new Vec3d(0.0, -1.0, 0.0), new Vec3d(0.0, -1.0, -1.0), new Vec3d(0.0, -1.0, 1.0), new Vec3d(-1.0, -1.0, 0.0), new Vec3d(1.0, -1.0, 0.0)};
-        legOffsetList = new Vec3d[]{new Vec3d(-1.0, 0.0, 0.0), new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0), new Vec3d(0.0, 0.0, 1.0)};
-        doubleLegOffsetList = new Vec3d[]{new Vec3d(-1.0, 0.0, 0.0), new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0), new Vec3d(0.0, 0.0, 1.0), new Vec3d(-2.0, 0.0, 0.0), new Vec3d(2.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -2.0), new Vec3d(0.0, 0.0, 2.0)};
-        OffsetList = new Vec3d[]{new Vec3d(1.0, 1.0, 0.0), new Vec3d(-1.0, 1.0, 0.0), new Vec3d(0.0, 1.0, 1.0), new Vec3d(0.0, 1.0, -1.0), new Vec3d(0.0, 2.0, 0.0)};
-        headpiece = new Vec3d[]{new Vec3d(0.0, 2.0, 0.0)};
-        offsetsNoHead = new Vec3d[]{new Vec3d(1.0, 1.0, 0.0), new Vec3d(-1.0, 1.0, 0.0), new Vec3d(0.0, 1.0, 1.0), new Vec3d(0.0, 1.0, -1.0)};
-        antiStepOffsetList = new Vec3d[]{new Vec3d(-1.0, 2.0, 0.0), new Vec3d(1.0, 2.0, 0.0), new Vec3d(0.0, 2.0, 1.0), new Vec3d(0.0, 2.0, -1.0)};
-        antiScaffoldOffsetList = new Vec3d[]{new Vec3d(0.0, 3.0, 0.0)};
+        antiDropOffsetList = new Vec3d[]{
+            new Vec3d(0.0, -2.0, 0.0)
+        };
+        platformOffsetList = new Vec3d[]{
+            new Vec3d(0.0, -1.0, 0.0),
+            new Vec3d(0.0, -1.0, -1.0),
+            new Vec3d(0.0, -1.0, 1.0),
+            new Vec3d(-1.0, -1.0, 0.0),
+            new Vec3d(1.0, -1.0, 0.0)
+        };
+        legOffsetList = new Vec3d[]{
+            new Vec3d(-1.0, 0.0, 0.0),
+            new Vec3d(1.0, 0.0, 0.0),
+            new Vec3d(0.0, 0.0, -1.0),
+            new Vec3d(0.0, 0.0, 1.0)
+        };
+        doubleLegOffsetList = new Vec3d[]{
+            new Vec3d(-1.0, 0.0, 0.0),
+            new Vec3d(1.0, 0.0, 0.0),
+            new Vec3d(0.0, 0.0, -1.0),
+            new Vec3d(0.0, 0.0, 1.0),
+            new Vec3d(-2.0, 0.0, 0.0),
+            new Vec3d(2.0, 0.0, 0.0),
+            new Vec3d(0.0, 0.0, -2.0),
+            new Vec3d(0.0, 0.0, 2.0)
+        };
+        OffsetList = new Vec3d[]{
+            new Vec3d(1.0, 1.0, 0.0),
+            new Vec3d(-1.0, 1.0, 0.0),
+            new Vec3d(0.0, 1.0, 1.0),
+            new Vec3d(0.0, 1.0, -1.0),
+            new Vec3d(0.0, 2.0, 0.0)
+        };
+        headpiece = new Vec3d[]{
+            new Vec3d(0.0, 2.0, 0.0)
+        };
+        offsetsNoHead = new Vec3d[]{
+            new Vec3d(1.0, 1.0, 0.0),
+            new Vec3d(-1.0, 1.0, 0.0),
+            new Vec3d(0.0, 1.0, 1.0),
+            new Vec3d(0.0, 1.0, -1.0)
+        };
+        antiStepOffsetList = new Vec3d[]{
+            new Vec3d(-1.0, 2.0, 0.0),
+            new Vec3d(1.0, 2.0, 0.0),
+            new Vec3d(0.0, 2.0, 1.0),
+            new Vec3d(0.0, 2.0, -1.0)
+        };
+        antiScaffoldOffsetList = new Vec3d[]{
+            new Vec3d(0.0, 3.0, 0.0)
+        };
     }
 
     public static void attackEntity(Entity entity, boolean packet, boolean swingArm) {
@@ -85,13 +127,15 @@ public class EntityUtil implements Util {
 
     public static boolean isCrystalAtFeet(EndCrystalEntity crystal, double range) {
         for (PlayerEntity player : mc.world.getPlayers()) {
-            if (mc.player.squaredDistanceTo(player) > range * range) {
+            if (mc.player.squaredDistanceTo(player) > range * range)
+            {
                 continue;
             }
             if (Friends.get().isFriend(player)) {
                 continue;
             }
-            for (Vec3d vec : EntityUtil.doubleLegOffsetList) {
+            for (Vec3d vec : EntityUtil.doubleLegOffsetList)
+            {
                 BlockPos playerPos = new BlockPos(player.getBlockPos()).add((int) vec.x, (int) vec.y, (int) vec.z);
                 if (playerPos.equals(crystal.getBlockPos())) {
                     return true;
